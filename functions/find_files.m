@@ -25,16 +25,28 @@ tag = varargin{2};
 if nargin > 2
     if strcmpi(varargin{3},'On') || strcmpi(varargin{3},'Off')
     showProgress = varargin{3};
+    else
+        showProgress = 'Off';
     end
 else
     showProgress = 'Off';
 end
 
+% shortState: 'On'. Stop looking for folders at the point when no folders
+% are being found.
 iEntry = find(strcmp(varargin(3:end),'short'));
 if ~isempty(iEntry)
     shortState = 'On';
 else
     shortState = 'Off';
+end
+
+% Get whether the fileTypeTag is direct or not
+C = strsplit(tag,'.');
+if strcmp(C(end),'mat')
+   directState = 'On'; 
+else
+   directState = 'Off'; 
 end
 
 % Global variable
@@ -85,31 +97,39 @@ lookfortagedfiles
 
     function lookfortagedfiles
         % Search every folder to find the folders with the right tag
+        
         out = [];
         tFolder = length(folderList);
-        for i = 1:tFolder
-            if strcmp(showProgress,'On')
-               display_progress(i,tFolder); 
+        
+        % If the target is specific (example: options.mat)
+        if strcmpi(directState,'On')
+            for i = 1:tFolder
+                if strcmp(showProgress,'On')
+                    display_progress(i,tFolder);
+                end
+                state = exist([folderList{i} '/' tag],'file');
+                if state > 0
+                    % Save file name
+                    out(end+1).file = tag;
+                    % Save directory name
+                    out(end).folder = folderList{i};
+                end
             end
-            state = exist([folderList{i} '/' tag],'file');
-            if state > 0
-                % Save file name
-                out(end+1).file = tag;
-                % Save directory name
-                out(end).folder = folderList{i};
+        end
+        
+        % if the tag is not specific (example: options)
+        if strcmpi(directState,'Off')
+            for i = 1:tFolder
+                files = dir(folderList{i});
+                for j = 3:length(files)
+                    if strfind(files(j).name,tag) > 0
+                        % Save file name
+                        out(end+1).file = files(j).name;
+                        % Save directory name
+                        out(end).folder = folderList{i};
+                    end
+                end
             end
-            
-%             k = 0;
-%             files = dir(folderList{i});
-%             for j = 3:length(files)
-%                 if strfind(files(j).name,tag) > 0
-%                     % Save file name
-%                     out(k).file = files(j).name;
-%                     % Save directory name
-%                     out(k).folder = folderList{i};
-%                     k = k + 1;
-%                 end
-%             end
         end
     end
 
