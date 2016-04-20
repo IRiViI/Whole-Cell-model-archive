@@ -85,21 +85,20 @@ lookfortagedfiles
 
     function lookfortagedfiles
         % Search every folder to find the folders with the right tag
-        out = [];
+        k = 1;
         tFolder = length(folderList);
         for i = 1:tFolder
             if strcmp(showProgress,'On')
                display_progress(i,tFolder); 
             end
-            state = exist([folderList{i} '/' tag],'file');
-            if state > 0
-                % Save file name
-                out(end+1).file = tag;
-                % Save directory name
-                out(end).folder = folderList{i};
-            end
-            
-%             k = 0;
+            state = exist([folderList{i} '/' 'options.mat'],'file');
+            if strfind(files(j).name,tag) > 0
+                    % Save file name
+                    out(k).file = files(j).name;
+                    % Save directory name
+                    out(k).folder = folderList{i};
+                    k = k + 1;
+                end
 %             files = dir(folderList{i});
 %             for j = 3:length(files)
 %                 if strfind(files(j).name,tag) > 0

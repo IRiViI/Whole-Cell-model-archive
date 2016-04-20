@@ -26,14 +26,22 @@ end
 % Default options
 options.progress = 'On';
 options.knockout_filter = 'On';
+options.short = 'Off';
 
 % Adjust default options
 if nargin > 2
-    input_options = struct(varargin(3:end));
+    input_options = struct(varargin{2:end});
     field_names = fieldnames(input_options);
     for i = 1:size(field_names,1)
         options.(field_names{i}) = input_options.(field_names{i});
     end
+end
+
+% options for find_files function ('short' will result in a less thorough
+% search in the directory (much faster).
+ffstruct = {};
+if strcmp(options.short,'On')
+    ffstruct{end+1} = 'short';
 end
 
 % If there is no propperty "set" yet (Old dated as well, because it is always present)
@@ -42,7 +50,7 @@ if ~isprop(archive,'set')
 end
 
 % Find all the option files
-file_path_structure = find_files(file,'options','On');
+file_path_structure = find_files(file,'options.mat','On',ffstruct{:});
 
 % Progress spacer
 if strcmp(options.progress,'On')
