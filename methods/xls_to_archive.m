@@ -106,15 +106,20 @@ for i_row = 1:t_row
     if options.read_length(end) > options.read_length(end-1)
         % If the values are saved as one array
         number = find(strcmp(archive.info.Metabolite.ID,link)); % Link the row with the archive
-        if isnan(value{1})
-            data(number) = {''};
-        else
-            data(number) = value; % Set value
+        if ~isempty(number)
+            if isnan(value{1})
+                data(number) = {''};
+            else
+                data(number) = value; % Set value
+            end
         end
     elseif options.read_length(end) < options.read_length(end-1)
         % If the values are individually saved under separate entries of the parent
         number = find(strcmp({data.(options.read_location{end})},link)); % Link the row with the archive
-        data(number).(options.write_location{end}) = value; % Set value
+        % Add value if match is found
+        if ~isempty(number)
+            data(number).(options.write_location{end}) = value{1}; % Set value
+        end
     end
 end
 
@@ -124,7 +129,7 @@ end
 if options.read_length(end) > options.read_length(end-1)
     replace_field = length(options.read_location);
 elseif options.read_length(end) < options.read_length(end-1)
-    replace_field = length(options.readlocation) - 1;
+    replace_field = length(options.read_location) - 1;
 end
 
 % Save

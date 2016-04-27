@@ -9,8 +9,16 @@
 %   Where directory and tag are both string values and out is a structure
 %   with the fields "file" and "folder".
 %
-%   Example:
+%   'short'     - Setting 'short' to save con significantly speed up the
+%                 find folder process. This option should only be used when
+%                 all the simulation files are at the same level!!! This
+%                 because the find folder project will stop when a folder
+%                 is found without any simulations inside.
+%
+%   Examples:
 %   structure = find_files('path/to/folder','FileNamePart')
+%   out = find_files(directory,tag,'Off') % show no progress
+%   out = find_files(directory,tag,'short')
 
 % Author: Rick Vink, rickvink@mit.edu h.w.vink@student.tudelft.nl
 % Affilitation: Timothy Lu, MIT
@@ -24,7 +32,7 @@ tag = varargin{2};
 
 if nargin > 2
     if strcmpi(varargin{3},'On') || strcmpi(varargin{3},'Off')
-    showProgress = varargin{3};
+        showProgress = varargin{3};
     else
         showProgress = 'Off';
     end

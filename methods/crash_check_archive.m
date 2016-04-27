@@ -33,7 +33,7 @@ function archive = crash_check_archive(varargin)
 archive = varargin{1};
 
 % Targeted file
-fileTypeTag = 'summary';
+fileTypeTag = 'summary.mat';
 removeState = 'Off';
 progressState = 'On';
 lifeTime = 50000;
@@ -83,23 +83,28 @@ for strainNumber = sets
         display_progress(strainNumber,length(sets))
     end
     
-    % Get the location of the desired files
-    fileDir = get_files(archive,fileTypeTag,strainNumber);
+    % Number of simulations
+    tSim = length(archive.set(strainNumber).simulation);
     
     % Check every simulation
-    for simulationNumber = 1:length(fileDir)
+    for simulationNumber = 1:tSim
         
         % Only process when it has not been processed before or everything
         % should be redone.
-        if isempty(archive.set(strainNumber).simulation(simulationNumber).lifetime) || strcmp(options.redo,'On')
+        if isempty(archive.set(strainNumber).simulation(simulationNumber).trends(end).time) || strcmp(options.redo,'On')
             
             % Load the state file
-            % state files
-            if ~strcmp(fileTypeTag,'summary')
-                state = load(fileDir{simulationNumber},'Geometry');
+            if ~strcmp(fileTypeTag,'summary.mat')
+                % state files
+                state = archive.load_file(strainNumber,simulationNumber,...
+                    'fileTypeTag',fileTypeTag,...
+                    'fields',{'Geometry'});
+                
                 % summary files
-            elseif strcmp(fileTypeTag,'summary')
-                state = load(fileDir{simulationNumber},'pinchedDiameter');
+            elseif strcmp(fileTypeTag,'summary.mat')
+                state = archive.load_file(strainNumber,simulationNumber,...
+                    'fileTypeTag',fileTypeTag,...
+                    'fields',{'pinchedDiameter'});
             end
             
             % Check if the the simulation meet the criteria of crashing

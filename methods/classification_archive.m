@@ -4,7 +4,7 @@
 %
 %   Generated fields:
 %   archive.set.simulation.class
-%   archive.set.class         
+%   archive.set.class
 %   archive.settings.classification
 %
 %   Required fields:
@@ -30,7 +30,7 @@ archive = varargin{1};
 
 % Clear old settings
 try
-archive.settings = rmfield(archive.settings,'classification');
+    archive.settings = rmfield(archive.settings,'classification');
 catch
 end
 
@@ -43,13 +43,13 @@ classification.Others = struct();
 noGrowth.mass.max = 1.2;
 classification.NoGrowth = noGrowth;
 
-% Not used: 
+% Not used:
 
 % % Second class: Stopped RNA production. Concentration of RNA goes down.
 % stoppedRna.mass.min = 1.7;
 % stoppedRna.rnaFactor.max = 1/50;
 % classification.stoppedRna = stoppedRna;
-% 
+%
 % % Third class: Stopped protein production. Concentration of Proteins goes
 % % down.
 % stoppedProtein.mass.min = 1.7;
@@ -57,7 +57,7 @@ classification.NoGrowth = noGrowth;
 % stoppedProtein.proteinFactor.max = 1;
 % classification.stoppedProtein = stoppedProtein;
 
-% Class: Slow growth, 
+% Class: Slow growth,
 decreasingGrowth.lifetime.min = 50000;
 decreasingGrowth.growth.max = 1.0;
 classification.decreasingGrowth = decreasingGrowth;
@@ -75,7 +75,7 @@ classification.noDivision = noDivision;
 % vital.mass.min = 1.7;
 % vital.rnaFactor.min = 1/50;
 % vital.proteinFactor.min = 1;
-vital.lifetime.max = 45000;
+vital.lifetime.max = 49999;
 classification.vital = vital;
 
 % Zeroth class: Others
@@ -110,10 +110,10 @@ for iStrain = 1:tStrain
         massEnd_2 = archive.set(iStrain).simulation(iSimulation).trends(end-2).mass;
         massEnd_1 = archive.set(iStrain).simulation(iSimulation).trends(end-1).mass;
         massEnd = archive.set(iStrain).simulation(iSimulation).trends(end).mass;
-        rna1 = archive.set(iStrain).simulation(iSimulation).trends(1).rnas;
-        rna3 = archive.set(iStrain).simulation(iSimulation).trends(3).rnas;
-        protein1 = archive.set(iStrain).simulation(iSimulation).trends(1).proteins;
-        proteinEnd = archive.set(iStrain).simulation(iSimulation).trends(end).proteins;
+        %         rna1 = archive.set(iStrain).simulation(iSimulation).trends(1).rnas;
+        %         rna3 = archive.set(iStrain).simulation(iSimulation).trends(3).rnas;
+        %         protein1 = archive.set(iStrain).simulation(iSimulation).trends(1).proteins;
+        %         proteinEnd = archive.set(iStrain).simulation(iSimulation).trends(end).proteins;
         timeEnd_3 = archive.set(iStrain).simulation(iSimulation).trends(end-3).time;
         timeEnd_2 = archive.set(iStrain).simulation(iSimulation).trends(end-2).time;
         timeEnd_1 = archive.set(iStrain).simulation(iSimulation).trends(end-1).time;
@@ -123,7 +123,7 @@ for iStrain = 1:tStrain
         dmassEnd_1 = (massEnd_1 - massEnd_2)/(timeEnd_1 - timeEnd_2);
         dmassEnd_2 = (massEnd_2 - massEnd_3)/(timeEnd_2 - timeEnd_3);
         
-%         dmassEnd2 = (massEnd - massEnd_2)/(timeEnd - timeEnd_2);
+        %         dmassEnd2 = (massEnd - massEnd_2)/(timeEnd - timeEnd_2);
         
         % Classification
         if  massEnd < noGrowth.mass.max * mass1
@@ -131,23 +131,23 @@ for iStrain = 1:tStrain
             % No growth
             class = 1;
             
-%         elseif massEnd >= stoppedRna.mass.min * mass1 &&...
-%                 rna3/rna1 < stoppedRna.rnaFactor.max
-%
-%             % Rna deficient
-%             class = 2;
-%             
-%         elseif massEnd >= stoppedProtein.mass.min * mass1 &&...
-%                 rna3/rna1 > stoppedProtein.rnaFactor.min &&...
-%                 proteinEnd/protein1 < stoppedProtein.proteinFactor.max
-%
-%             % Protein deficient
-%             class = 3;
-%
+            %         elseif massEnd >= stoppedRna.mass.min * mass1 &&...
+            %                 rna3/rna1 < stoppedRna.rnaFactor.max
+            %
+            %             % Rna deficient
+            %             class = 2;
+            %
+            %         elseif massEnd >= stoppedProtein.mass.min * mass1 &&...
+            %                 rna3/rna1 > stoppedProtein.rnaFactor.min &&...
+            %                 proteinEnd/protein1 < stoppedProtein.proteinFactor.max
+            %
+            %             % Protein deficient
+            %             class = 3;
+            %
         elseif ... %massEnd >= stoppedRna.mass.min * mass1 &&...
                 (dmassEnd < decreasingGrowth.growth.max * dmassEnd_1 &&...
                 dmassEnd_1 < decreasingGrowth.growth.max * dmassEnd_2) &&...
-                timeEnd >= decreasingGrowth.lifetime.min 
+                timeEnd >= decreasingGrowth.lifetime.min
             
             % Slow growth
             class = 2;
@@ -165,7 +165,7 @@ for iStrain = 1:tStrain
         elseif ... %massEnd >= vital.mass.min * mass1 &&...
                 ... %rna3/rna1 > vital.rnaFactor.min &&...
                 ... %proteinEnd/protein1 > vital.proteinFactor.min &&...
-                timeEnd < vital.lifetime.max
+                timeEnd <= vital.lifetime.max
             
             % Vital
             class = 4;

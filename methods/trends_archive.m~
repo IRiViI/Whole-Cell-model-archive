@@ -210,7 +210,7 @@ for iStrain = options.set
         
     end
     
-    %-- Get an average and std value for the fields at every time point--%
+    %-- Get an average and std value for the fields --%
     
     % Field names
     nameFields = fields(archive.set(iStrain).simulation(1).trends);
@@ -224,7 +224,7 @@ for iStrain = options.set
         % Initiate max time tracker
         tTime = 0;
         
-        % At every time point
+        % For every time point
         while 1
             
             % Time point
@@ -244,18 +244,28 @@ for iStrain = options.set
                 tiTime = length(archive.set(iStrain).simulation(iSim).trends);
                 
                 % Only get the value if it's not the last value
-                if iTime < tiTime
-                    values(end+1)=archive.set(iStrain).simulation(iSim).trends(iTime).(nameFields{iField});
+                if iTime ~= tiTime
+                    try
+                        values(:,end+1)=archive.set(iStrain).simulation(iSim).trends(iTime).(nameFields{iField});
+                    catch
+                        % Later than life time
+                    end
                     % Update the maximal number of time points in the set
                     tTime = max([tTime,tiTime]); % Yes I know this is not the most efficient way but it works
+                    
                 end
+                
             end
             
             % Determine the values if it's the last time point
             if iTime == tTime
+               
                 for iSim = 1:tSim
-                    values(end+1)=archive.set(iStrain).simulation(iSim).trends(end).(nameFields{iField});
+                   
+                    values(:,iSim)=archive.set(iStrain).simulation(iSim).trends(end).(nameFields{iField});
+                    
                 end
+                
             end
             
             % Calculate avarage and standard deviation
@@ -265,6 +275,7 @@ for iStrain = options.set
             % Add value
             archive.set(iStrain).trends(iTime).(['average_' nameFields{iField}]) = average;
             archive.set(iStrain).trends(iTime).(['std_' nameFields{iField}]) = std;
+            
             
             % Stop while loop when the last value has been analysed
             if iTime == tTime

@@ -74,12 +74,20 @@ for sheetNumber = 1: length(sheetName)
     token = strtok(sheetName{sheetNumber},'.');
     
     % Save fields
-    archive.info.(token).ID = ID;
-    archive.info.(token).name = name;
-    
-    % Add location info
-    archive.info.location.name = locations;    
+    tEntry = length(ID);
+    newField = struct();
+    for iEntry = 1:tEntry
+        newField(iEntry).ID = ID{iEntry};
+        newField(iEntry).name = name{iEntry};
+    end
+    archive.info(1).(token) = newField;
     
 end
+
+    % Add location info
+    tLoc = length(locations);
+    for iLoc = 1:tLoc
+        archive.info.location(iLoc).name = locations{iLoc};
+    end
 
 end

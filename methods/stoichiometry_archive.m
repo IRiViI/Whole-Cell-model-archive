@@ -69,16 +69,16 @@ for iRow = 1:size(raw,1)
     if ~isnan(ID)
         
         % Find reaction in metabolic reaction archive
-        reaction = find(strcmp(archive.info.MetabolicReaction.ID,ID));
+        reaction = find(strcmp({archive.info.MetabolicReaction.ID},ID));
         
         % If reaction is found
         if ~isempty(reaction)
         
             % Add the requiested information.
-            archive.info.MetabolicReaction.Stoich{reaction} = raw{iRow,targets.StoichColumn};
-            archive.info.MetabolicReaction.Enzyme.ID{reaction} = raw{iRow,targets.EnzymeIDColumn};
-            archive.info.MetabolicReaction.Enzyme.Column{reaction} = raw{iRow,targets.EnzymeCompartmentColumn};
-            archive.info.MetabolicReaction.Coenzyme{reaction} = raw{iRow,targets.Coenzyme};
+            archive.info.MetabolicReaction(reaction).Stoich = raw{iRow,targets.StoichColumn};
+            archive.info.MetabolicReaction(reaction).Enzyme.ID = raw{iRow,targets.EnzymeIDColumn};
+            archive.info.MetabolicReaction(reaction).Enzyme.Compartment = raw{iRow,targets.EnzymeCompartmentColumn};
+            archive.info.MetabolicReaction(reaction).Coenzyme = raw{iRow,targets.Coenzyme};
             
         end
     end    

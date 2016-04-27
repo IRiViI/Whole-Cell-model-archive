@@ -17,6 +17,10 @@ classdef Archive < dynamicprops
             
             % Path to archive class folder
             tmp = dbstack('-completenames');
+            % Find the correct dir (apprently required durint parallel processing...)
+            % It seems that there are more directories found when using
+            % parfor
+%        (tmpNum)     tmpNum = find(arrayfun(@(x)(~isempty(strfind(tmp(x).file,'Archive.mat'))),1:length(tmp))); 
             this.settings.dir = fileparts(tmp.file);
             
             % Add paths
@@ -381,6 +385,21 @@ classdef Archive < dynamicprops
             % Progress spacer
             fprintf('Progress:\n      ')
             
+            % Keep track of progress (this is the easiest way because it is
+            % possible to select an individual set, which would otherwise
+            % mess up my standard approach).
+            progressCounter = 0;
+            progresstSim  = 0;
+            for iSet = options.set
+                if options.simulation == 0
+                    % If all simulations should be compressed
+                    progresstSim = progresstSim + length(this.set(iSet).simulation);
+                else
+                    % If only a selected simulation should be compressed
+                    progresstSim = progresstSim + length(this.set(iSet).simulation(options.simulation));
+                end
+            end
+            
             % For every set that should be compressed
             for iSet = options.set
                 % Get the number of simulations in set in the case that all
@@ -391,7 +410,7 @@ classdef Archive < dynamicprops
                     simulations = options.simulation;
                 end
                     
-                % For every simulation
+                % For every simulationprogresstSim = progresstSim + length(this.set(iSet).simulation);
                 for iSimulation = simulations
                     
                     % Folder name
@@ -403,7 +422,7 @@ classdef Archive < dynamicprops
                             strcmp(options.redo,'On')
                         
                         % Show progress
-                        display_progress(iSet+iSimulation/length(simulations),length(options.set));
+                        display_progress(progressCounter,progresstSim);
                         text = sprintf('Set: %d; \nSimulation: %d\nFolder: %s\n',iSet,iSimulation,folder);
                         fprintf(text);
                         
@@ -415,7 +434,14 @@ classdef Archive < dynamicprops
                         for letter = 1:length(text)
                             fprintf('\b');
                         end
+                        
+                        display_progress(progressCounter,progresstSim);
+                        
                     end
+                    
+                    % Keep track of progress
+                    progressCounter = progressCounter + 1;
+                    
                 end
                 
             end
@@ -919,12 +945,103 @@ classdef Archive < dynamicprops
             
         end
         
-        function sims = simulations(this,set)
+        function sims = simulations(this, set)
             % tSimulation = archive.simulations(set)
             %
             % Number of sims in set "set"
            
             sims = length(this.set(set).simulation);
+            
+        end
+        
+        function this = add_info(this, varargin)
+            % Add a new info structure to archive
+            %
+            % archive.add_info('path/to/infoFile')
+            %   or
+            % archive.add_info(set) % where set is a numeric
+            %
+            %   'note'      - Add note to info file
+            
+            % File dir of info.mat file
+            if isstr(varargin{1})
+                dir = varargin{1};
+                load(dir); % Load info structure
+            else isnumeric(varargin{1})
+                % Look for info.mat files in folders
+                tSim = length(this.set(varargin{1}).simulation);
+                for iSim = 1:tSim
+                    folder = this.set(varargin{1}).simulation(1).folder;
+                    dir = [folder '/' 'info.mat'];
+                    try
+                        load(dir); % Load info structure
+                        break % Stop if info.mat structure found
+                    catch
+                        % If it's the last simulation folder
+                        if iSim == tSim
+                            error('No info.mat found in simulation folders');
+                        end
+                    end
+                end
+            end
+            
+            
+            % Default settings
+            options.note = 'new info structure';
+            
+            % Check if the basic info structure is present
+            if isempty(this.info)
+                error('Please include the standard information default first. archive.general_information')
+            end
+            
+            % Optional parameters
+            % Adjust options
+            inputOptions = struct(varargin{2:end});
+            fieldNames = fieldnames(inputOptions);
+            for i = 1:size(fieldNames,1)
+                options.(fieldNames{i}) = inputOptions.(fieldNames{i});
+            end
+            
+            % The fields and number of fields of preexisting info structure
+            prefInfo = fields(this.info(1));
+            pretInfo = length(prefInfo);
+            
+            % Add preexisting fields to new info structures
+            info = struct();
+            info.note = options.note;
+            for preiInfo = 1:pretInfo
+                % Check if field exist
+                if ~isfield(info,prefInfo{preiInfo})
+                    % Add field if it does not exist
+                    info.(prefInfo{preiInfo}) = struct;
+                end
+            end
+            
+            % The fields and number of fields of preexisting info structure
+            fInfo = fields(info);
+            tInfo = length(fInfo);
+            
+            % Add new fields to preexisting info structure
+            for iInfo = 1:tInfo
+                % Check if field exists
+                if ~isfield(this.info,fInfo{iInfo})
+                    % Add field if it does not exist
+                    this.info.(fInfo{iInfo}) = struct;
+                end
+            end
+            
+            % The fields and number of newfields info structures
+            newfInfo = fields(this.info(1));
+            newtInfo = length(newfInfo);
+            
+            % Order the new info structure into the same order as
+            % preexisting info structures
+            for newiInfo = 1:newtInfo
+               shuffledinfo.(newfInfo{newiInfo}) = info.(newfInfo{newiInfo});
+            end
+            
+            % Add info structure
+            this.info(end+1) = shuffledinfo;
             
         end
         

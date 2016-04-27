@@ -86,7 +86,7 @@ stoich = struct();
 stoich.molecule = [];
 
 % number of reactions
-tReaction = length(archive.info.MetabolicReaction.Stoich);
+tReaction = length(archive.info.MetabolicReaction);
 
 % Progress spacing
 if strcmp(options.process,'On')
@@ -102,7 +102,7 @@ for iReaction = 1:tReaction
     end
     
     % stoichiometic Formula
-    stoichiometicFormula = archive.info.MetabolicReaction.Stoich{iReaction};
+    stoichiometicFormula = archive.info.MetabolicReaction(iReaction).Stoich;
     
     % Get the individual elements of the reaction
     reactionElement = strsplit(stoichiometicFormula);
@@ -171,11 +171,11 @@ for iReaction = 1:tReaction
     stoich.reaction(iReaction).number = num2str(iReaction);
     
     % Reaction id
-    reaction_id = archive.info.MetabolicReaction.ID{iReaction};
+    reaction_id = archive.info.MetabolicReaction(iReaction).ID;
     stoich.reaction(iReaction).id = reaction_id;
     
     % Reaction name
-    reaction_name = archive.info.MetabolicReaction.name{iReaction};
+    reaction_name = archive.info.MetabolicReaction(iReaction).name;
     % If there is no reaction name
     if isnan(reaction_name)
         reaction_name = '';
@@ -206,7 +206,7 @@ for iReaction = 1:tReaction
     end
     
     % Save reaction id list to the info list as well
-    archive.info.MetabolicReaction.cytoscapeID{iReaction} = reaction_id;
+    archive.info.MetabolicReaction(iReaction).cytoscapeID = reaction_id;
     
 end
 
@@ -275,7 +275,7 @@ speciesTypes = varargin{3};
 for iType = 1:length(speciesTypes)
     
     % Find for molecule
-    moleculeNumber = find(strcmp(info.(speciesTypes{iType}).ID,element));
+    moleculeNumber = find(strcmp({info.(speciesTypes{iType}).ID},element));
     
     % If molecule found
     if ~isempty(moleculeNumber)
@@ -286,7 +286,7 @@ for iType = 1:length(speciesTypes)
             % Save the type of the molecule
             type = speciesTypes{iType};
             % Save the name of the molecule
-            name = info.(type).name{moleculeNumber};
+            name = info.(type)(moleculeNumber).name;
         else
             error('Molecule present in two different lists');
         end
