@@ -50,7 +50,7 @@ else
 end
 
 % Get whether the fileTypeTag is direct or not
-C = strsplit(tag,'.');
+C = strsplit_archive(tag,'.');
 if strcmp(C(end),'mat')
    directState = 'On'; 
 else

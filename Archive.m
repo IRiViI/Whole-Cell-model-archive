@@ -20,26 +20,86 @@ classdef Archive < dynamicprops
             % Find the correct dir (apprently required durint parallel processing...)
             % It seems that there are more directories found when using
             % parfor
-%        (tmpNum)     tmpNum = find(arrayfun(@(x)(~isempty(strfind(tmp(x).file,'Archive.mat'))),1:length(tmp))); 
+            %        (tmpNum)     tmpNum = find(arrayfun(@(x)(~isempty(strfind(tmp(x).file,'Archive.mat'))),1:length(tmp)));
             this.settings.dir = fileparts(tmp.file);
             
             % Add paths
             this.add_paths();
             
-            % Set name of archive
-            this.settings.name = 'Auto_save_archive';
+            % Set name of archive. This name is used by the function 
+            % archive.save_archive.
+            this.settings.name = 'new_archive';
             
-            % Auto save state
-            this.settings.auto_save = 'On';
+            % Auto save state. The archive is automatically saved after
+            % certain methods when auto_save is true
+            this.settings.auto_save = true;
             
         end
         
         function this = add_paths(this)
             % Add paths
             
+            addpath(this.settings.dir);
             addpath([this.settings.dir '/methods']);
             addpath([this.settings.dir '/functions']);
             addpath([this.settings.dir '/data_base']);
+        end
+        
+        function this = initiate_WCM(this)
+            % Add the libraries of the whole cell model
+            
+            % Save current directory
+            current_directory = cd;
+            % Check how many times a new directory is set
+            attempt = 1; 
+            
+            % Try to open while not succeeded
+            while true
+                
+                try % Try
+                    % Open data base of the whole cell model
+                    [~]=cd(this.settings.WCM);
+                    addpath(this.settings.WCM);
+                    setWarnings();
+                    setPath();
+                    
+                    % Go back to original directory
+                    cd(current_directory);
+                    
+                    % Break after succes
+                    break
+                    
+                catch % If fails
+                    
+                    % Check if the directory of the whole cell model is know
+                    if ~isfield(this.settings,'WCM')
+                        % If no directory is set so far
+                        tmp = input('Please give the directry of the whole cell model on local computer:\n','s');
+                        this.settings.WCM = tmp;
+                    else
+                        if attempt > 1 % If it's the second attempt
+                            multiAttempt = 'Example: /home/path/to/folder/wholeCell-master\n';
+                        else
+                            multiAttempt = '';
+                        end
+                        % If the directory is set but incorrect
+                        inputMessage = sprintf(['Whole cell model directory is incorrect.\n' ...
+                            'Current directory is \n%s\n'...
+                            '%s'...
+                            'please enter correct directory:\n'],this.settings.WCM,multiAttempt);
+                        tmp = input(inputMessage,'s');
+                        this.settings.WCM = tmp;
+                    end
+                    
+                    % Update attempt
+                    attempt = attempt + 1;
+                    
+                end
+                
+            end
+            
+            fprintf('Whole cell model libararies opened\n');
+            
         end
         
         function this = add_sets(this, varargin)
@@ -47,19 +107,19 @@ classdef Archive < dynamicprops
             %
             %   archive.add_sets('path/to/simulations/dir')
             %
-
+            
             add_sets_archive(this,varargin{:});
             
-            this.save_archive('On');
+            this.save_archive(true);
             
         end
         
         function this = general_processing(this)
             
-%             fprintf('Determine life time:\n');
-%             this.life_time();         % OLD DATED
-%             fprintf('Determine growth rate:\n');
-%             this.growth_rate();         % OLD DATED
+            %             fprintf('Determine life time:\n');
+            %             this.life_time();         % OLD DATED
+            %             fprintf('Determine growth rate:\n');
+            %             this.growth_rate();         % OLD DATED
             fprintf('Determine trends:\n');
             this.trends();
             
@@ -67,7 +127,7 @@ classdef Archive < dynamicprops
         
         function this = general_information(this)
             % Get some general information about the whole cell model
-           
+            
             fprintf('Set labels:\n');
             this.set_labels();
             fprintf('Done\n');
@@ -105,7 +165,7 @@ classdef Archive < dynamicprops
             % value = archive.extract_data({'subfield','subsubfield',...})
             % the fixed field is set, when the target is 'strain' (set).
             %
-            %   'set'       - It's possilbe to extract information of 
+            %   'set'       - It's possilbe to extract information of
             %                 simulations of a specific set. Set 'set' to
             %                 the set that should be inspected.
             %   'select'    - The coordinates of the value to extract. If the value
@@ -121,7 +181,7 @@ classdef Archive < dynamicprops
         function this = check_crashed_simulations(this,varargin)
             % Check for crashed simulation
             %
-            %   'set'           - Only check one or multiple specific sets. 
+            %   'set'           - Only check one or multiple specific sets.
             %                     Example: 'set',[1,2,10],...
             
             this = crash_check_archive(this,'remove','Off',varargin{:});
@@ -150,7 +210,7 @@ classdef Archive < dynamicprops
             % The life time is checked during checking for crashed
             % simulations.
             %
-            %   'set'           - Only check one or multiple specific sets. 
+            %   'set'           - Only check one or multiple specific sets.
             %                     Example: 'set',[1,2,10],...
             %   'redo'          - Redo old calculations (Default 'Off')
             
@@ -159,7 +219,7 @@ classdef Archive < dynamicprops
         end
         
         function this = remove_crashed_simulations(this,varargin)
-            % Remove Crashed simulations            
+            % Remove Crashed simulations
             
             tSet = length(this.set);
             for iSet = 1:tSet;
@@ -270,7 +330,7 @@ classdef Archive < dynamicprops
             tReaction = length(this.info.MetabolicReaction.ID);
             colorData = 0.5*ones(1,tReaction);
             thicknessData = 0.5*ones(1,tReaction);
-                
+            
             % Apply flux values
             if strcmp(options.MetabolicReaction,'On')
                 if isfield(options,'colorData')
@@ -324,7 +384,7 @@ classdef Archive < dynamicprops
         
         function this = set_stoichiometry(this, varargin)
             % Get and implement stoichiometry info
-        
+            
             % Default file
             options.excelFile = 'mmc4.xlsx';
             options.progress = 'On';
@@ -337,13 +397,13 @@ classdef Archive < dynamicprops
             end
             
             if strcmp(options.progress,'On')
-               fprintf('Read xml file:\n') 
+                fprintf('Read xml file:\n')
             end
             
             % Add stoichiometry info
             this = stoichiometry_archive(this, options.excelFile);
             if strcmp(options.progress,'On')
-               fprintf('Done\nProcess stoichiometry information:') 
+                fprintf('Done\nProcess stoichiometry information:')
             end
             % Implement stoichiometry structure;
             this = extent_stoichiometry_archive(this, 'progress', options.progress);
@@ -375,13 +435,13 @@ classdef Archive < dynamicprops
             end
             % The data of a simulations is in its own directory
             if ~isfield(options,'singleFolder');
-                    options.singleFolder = 'On';
+                options.singleFolder = 'On';
             end
             % Redo state
             if ~isfield(options,'redo');
-                    options.redo = 'Off';
+                options.redo = 'Off';
             end
-                
+            
             % Progress spacer
             fprintf('Progress:\n      ')
             
@@ -409,7 +469,7 @@ classdef Archive < dynamicprops
                 else
                     simulations = options.simulation;
                 end
-                    
+                
                 % For every simulationprogresstSim = progresstSim + length(this.set(iSet).simulation);
                 for iSimulation = simulations
                     
@@ -435,13 +495,12 @@ classdef Archive < dynamicprops
                             fprintf('\b');
                         end
                         
-                        display_progress(progressCounter,progresstSim);
-                        
                     end
                     
                     % Keep track of progress
                     progressCounter = progressCounter + 1;
                     
+                    display_progress(progressCounter,progresstSim);
                 end
                 
             end
@@ -499,14 +558,14 @@ classdef Archive < dynamicprops
             %   'set'           - Only check one or multiple specific sets.
             %                     Example: 'set',[1,2,10],...
             
-%             try
-                this = classification_archive(this, varargin{:});
-%             catch
-%                 warningMessage = sprintf(['Note: this method requires the methods "trends", \n'...
-%                     '"growth_rate" and "life_time" \n'...
-%                     ' to be executed first\n']);
-%                 warning(warningMessage);
-%             end
+            %             try
+            this = classification_archive(this, varargin{:});
+            %             catch
+            %                 warningMessage = sprintf(['Note: this method requires the methods "trends", \n'...
+            %                     '"growth_rate" and "life_time" \n'...
+            %                     ' to be executed first\n']);
+            %                 warning(warningMessage);
+            %             end
             
         end
         
@@ -528,7 +587,7 @@ classdef Archive < dynamicprops
             
             this = trends_archive(this, varargin{:});
             
-            this.save_archive('On')
+            this.save_archive(true)
             
         end
         
@@ -564,7 +623,7 @@ classdef Archive < dynamicprops
             
             this = snap_shot_archive(this, varargin{:});
             
-            this.save_archive('On');
+            this.save_archive(true);
             
         end
         
@@ -694,9 +753,9 @@ classdef Archive < dynamicprops
             reactions_or_molecules_used = varargin{4}; % The reactions or molecules involved in the construction of z ('selection' of archive.dendrogram)
             snap_shot_number = varargin{5}; % Number of the snap shot used in order to construct the z matrix
             
-%             if 
-%             set = varargin{4};              % The sets involved in the construction of the z matrix
-%             end
+            %             if
+            %             set = varargin{4};              % The sets involved in the construction of the z matrix
+            %             end
             
             [track_clusters,cluster_list,this] = find_clusters_archive(z,...
                 nClusters,sClusters,this,reactions_or_molecules_used,...
@@ -862,16 +921,16 @@ classdef Archive < dynamicprops
             for iSet = 1:tSet
                 
                 % Progress
-               display_progress(iSet,tSet);
-               
-               % Total number of simulation
+                display_progress(iSet,tSet);
+                
+                % Total number of simulation
                 tSim = length(this.set(iSet).simulation);
                 
                 % For every simulation
                 for iSim = 1:tSim
                     
                     % Try to load file
-                    try 
+                    try
                         this.load_file(iSet,iSim,'fileTypeTag',target);
                     catch
                         % If fails:
@@ -916,22 +975,27 @@ classdef Archive < dynamicprops
             %   archive.save_archive
             %       Always save simulation
             %
-            %   archive.save_archive('On')
-            %       Only save if auto save is 'On'
+            %   archive.save_archive(true)
+            %       Only save if auto save is true
             %
             
             % Set auto save
             if nargin > 1
                 auto = varargin{1};
             else
-                auto = 'Off';
+                auto = false;
             end
-                
+            
             % Save archive if desired
-            if strcmpi(this.settings.auto_save,'On') || strcmpi(auto,'Off')
+            if this.settings.auto_save || (~auto)
                 archive = this;
                 name = this.settings.name;
-                save(name,'archive');
+                if auto
+                    variable = 'Auto_save_';
+                else
+                    variable = '';
+                end
+                save([variable name],'archive');
             end
             
         end
@@ -949,7 +1013,7 @@ classdef Archive < dynamicprops
             % tSimulation = archive.simulations(set)
             %
             % Number of sims in set "set"
-           
+            
             sims = length(this.set(set).simulation);
             
         end
@@ -1037,7 +1101,7 @@ classdef Archive < dynamicprops
             % Order the new info structure into the same order as
             % preexisting info structures
             for newiInfo = 1:newtInfo
-               shuffledinfo.(newfInfo{newiInfo}) = info.(newfInfo{newiInfo});
+                shuffledinfo.(newfInfo{newiInfo}) = info.(newfInfo{newiInfo});
             end
             
             % Add info structure
@@ -1045,5 +1109,201 @@ classdef Archive < dynamicprops
             
         end
         
+        function out = get_files(this, varargin)
+            % archive.get_files(fileTypeTag,set)
+            %
+            % 'simulation'  - Specify specific simulation
+            %   'warning'   -'On' or 'Off', supress warning statements of this function.
+            %                 Default: 'On'
+            %   'multi'     -'On' or 'Off', multiple files are allowed in a folder and
+            %                 will be added to the archive. Default: 'On'
+            
+            out = get_files_archive(this, varargin{:});
+            
+        end
+        
+        function this = inspect_state_files(this,varargin)
+            % Obtain the time range of every individual "state-x" file
+            %
+            %   'set'       - Set which set to use
+            %   'simulation'- Set which set to use
+            
+            % Default settings
+            options.simulation = 1;
+            options.set = 1;
+            
+            % Adjust options
+            inputOptions = struct(varargin{:});
+            fieldNames = fieldnames(inputOptions);
+            for i = 1:size(fieldNames,1)
+                options.(fieldNames{i}) = inputOptions.(fieldNames{i});
+            end
+            
+            % Get path to the state files
+            out = this.get_files('state-',options.set,'simulation',options.simulation);
+            
+            % Total number of state files
+            tState = length(out);
+            
+            % Initate state file information structure
+            info = struct();
+            
+            % Progress
+            fprintf('Progress:\n     ');
+            
+            % For every state file
+            for iState = 1:tState
+                
+                % Progress
+                display_progress(iState,tState)
+                
+                % Split string to get the name of the state file
+                tmp = strsplit_archive(out{iState},'/'); % Remove "/"
+                tmp = strsplit_archive(tmp{end},'.'); % Remove "."
+                tmp = strrep(tmp, '-', '_'); % Replace "-"
+                tmp = strrep(tmp, ' ', '_'); % Replace " "
+                niState = tmp{1}; % The name of the state file
+                
+                % Load the state file
+                state = load(out{iState},'Time');
+                
+                % Get values
+                info.(niState).Time.min = min(squeeze(state.Time.values));
+                info.(niState).Time.max = max(squeeze(state.Time.values));
+            
+            end
+            
+            this.info.state = info;
+        end
+        
+        function find_time(this,varargin)
+            % Look which state file types might include the desired time
+            % point
+            
+            % Settings
+            options.time = varargin{1}; % time point
+            options.info = 1; % The state info number
+            
+            % Total number of state files
+            fState = fields(this.info.state);
+            tState = length(fState);
+            
+            % For every type of state file
+            for iState = 1:tState
+                
+                % Get the time info structure
+                info = this.info(options.info).state.(fState{iState}).Time; 
+                
+                % Check if the time point is between the two extreems
+                if info.min <= options.time && options.time <= info.max
+                    
+                    fprintf('The time point %d is found in state file type %s\n',...
+                        options.time,fState{iState});
+                    
+                end
+                
+            end
+            
+        end
+        
+        function out = count_simulation_folder_content(this)
+            % Counter how many simulations are found in the folders
+            
+            % Number of sets
+            tSet = this.sets;
+            
+            % Inititate out structure
+            out = struct();
+            
+            % For every set
+            for iSet = 1:tSet
+                
+                % Number of simulations in set
+                tSim = this.simulations(iSet);
+                
+                % For every simulation of set
+                for iSim = 1:tSim
+                    
+                    % Get the folder path
+                    folder = this.set(iSet).simulation(iSim).folder;
+                    
+                    % Cut folder path
+                    element = strsplit_archive(folder,'/');
+                    
+                    % total number of elements
+                    tElement = length(element);
+                    
+                    % For every element length
+                    for iElement = 1:tElement
+                        
+                        % Only process if the element is not empty
+                        if ~strcmp(element(iElement),'')
+                            
+                            % Create path
+                            path = [element(1:iElement)];
+                            path = path(~strcmp(path,''));
+                            path = strrep(path,' ','_');
+                            tPath = length(path);
+                            for iPath = 1:tPath
+                               path{iPath} =  ['folder_' path{iPath}];
+                            end
+                            
+                            % Path to counter
+                            path_counter = {path{:},'simulations'};
+                            
+                            % Update counter
+                            try
+                                tmp = getfield(out,path_counter{:});
+                                out = setfield(out,path_counter{:},tmp+1);
+                            catch
+                                out = setfield(out,path_counter{:},1);
+                            end
+                            
+                        end
+                        
+                    end
+                    
+                end
+                
+            end
+            
+        end
+        
+        function out = infocmp(this,varargin)
+            % strcmp like function specializid for archive which uses
+            % strfind instead of strcmp. 
+            %
+            %   out = infocmp(target,{'field1','field2',..})
+            %   
+            %   Example:
+            %       out = infocmp('DNA',{'info','ProteinComplex','name'});
+            %       out = 
+            %           [1 1 1 ..]
+            
+            % Get structure
+            if nargin > 3
+                field = get_field_archive(this, {varargin{2}{1:end-1}},varargin{3});
+            else
+                field = get_field_archive(this, {varargin{2}{1:end-1}});
+            end
+            tmp = {field.(varargin{2}{end})};
+            
+            % Compare the tag in the structure
+            out = arrayfun(@(x)(~isempty(strfind(tmp{x},varargin{1}))),1:length(tmp));
+            
+        end
+        
+        function cell_cycle(this,varargin)
+            % Visualize the progress of the cell
+            %
+            %   'set'       - set number
+            %  'simulation' - simulation number
+            
+            
+            cell_cycle_archive(this, varargin{:});
+            
+        end
+        
     end
+    
 end

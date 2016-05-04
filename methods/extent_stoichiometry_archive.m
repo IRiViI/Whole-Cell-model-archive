@@ -105,7 +105,7 @@ for iReaction = 1:tReaction
     stoichiometicFormula = archive.info.MetabolicReaction(iReaction).Stoich;
     
     % Get the individual elements of the reaction
-    reactionElement = strsplit(stoichiometicFormula);
+    reactionElement = strsplit_archive(stoichiometicFormula);
     
     % Check the reaction
     reactionStructure = check_elements(reactionElement,archive,speciesTypes);

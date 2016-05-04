@@ -72,12 +72,7 @@ end
 % -- Execution -- %
 
 % Get whether the fileTypeTag is direct or not
-C = strsplit(options.fileTypeTag,'.');
-if strcmp(C(end),'mat')
-   options.direct = 'On'; 
-else
-    options.direct = 'Off'; 
-end
+options.direct = check_direct(options.fileTypeTag);
 
 % Get updates on new line
 if strcmp(options.progressState,'On')
@@ -111,7 +106,7 @@ for iStrain = options.set
             archive.set(iStrain).simulation(iSimulation).trends = [];
             
             % Get the path to the simulation file
-            if strcmp(options.direct,'On')
+            if options.direct
                 folder = archive.set(iStrain).simulation(iSimulation).folder;
                 summaryPath = {[folder '/' options.fileTypeTag]};
             else

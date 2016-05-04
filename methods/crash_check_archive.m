@@ -83,6 +83,11 @@ for strainNumber = sets
         display_progress(strainNumber,length(sets))
     end
     
+    % Create field if it does not exist yet
+    if ~isfield(archive.set(strainNumber).simulation(1),'crash')
+        archive.set(strainNumber).simulation(1).crash = [];
+    end
+    
     % Number of simulations
     tSim = length(archive.set(strainNumber).simulation);
     
@@ -91,7 +96,8 @@ for strainNumber = sets
         
         % Only process when it has not been processed before or everything
         % should be redone.
-        if isempty(archive.set(strainNumber).simulation(simulationNumber).trends(end).time) || strcmp(options.redo,'On')
+        if isempty(archive.set(strainNumber).simulation(simulationNumber).crash) ||...
+                strcmp(options.redo,'On')
             
             % Load the state file
             if ~strcmp(fileTypeTag,'summary.mat')

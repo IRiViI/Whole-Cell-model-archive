@@ -59,8 +59,8 @@ end
 % ------------- list
 
 % Get the fields of list to read and write
-options.read_location = strsplit(options.list_link,'.');
-options.write_location = strsplit(options.list_data,'.');
+options.read_location = strsplit_archive(options.list_link,'.');
+options.write_location = strsplit_archive(options.list_data,'.');
 
 % Get the size of the read fields
 structure = archive;
@@ -118,6 +118,9 @@ for i_row = 1:t_row
         number = find(strcmp({data.(options.read_location{end})},link)); % Link the row with the archive
         % Add value if match is found
         if ~isempty(number)
+            if length(number)>1
+                error('More than one elements of the info structure correspond to the same link')
+            end
             data(number).(options.write_location{end}) = value{1}; % Set value
         end
     end

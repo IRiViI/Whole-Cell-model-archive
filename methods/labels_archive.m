@@ -50,6 +50,14 @@ for sheetNumber = 1: length(sheetName)
     % New clean structures
     ID = {};
     name = {};
+    form = {};
+    
+    % Check if there is a type "form"
+    if strcmpi(raw(1,4),'form')
+        formState = true;
+    else 
+        formState = false;
+    end
     
     % For every row of the table
     for rowNumber = 1:size(raw,1)
@@ -64,6 +72,10 @@ for sheetNumber = 1: length(sheetName)
                 if ~isnan(id{1})
                     ID(end+1) = id;
                     name(end+1) = raw(rowNumber,3);
+                    % If there is also a form
+                    if formState
+                        form(end+1) = raw(rowNumber,4);
+                    end
                 end
             end
         end
@@ -79,6 +91,9 @@ for sheetNumber = 1: length(sheetName)
     for iEntry = 1:tEntry
         newField(iEntry).ID = ID{iEntry};
         newField(iEntry).name = name{iEntry};
+        if formState
+            newField(iEntry).form = form{iEntry};
+        end
     end
     archive.info(1).(token) = newField;
     

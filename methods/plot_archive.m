@@ -47,6 +47,7 @@
 %                     'glueState' can either be 'mean' or 'end'. meaning
 %                     the mean or last value of the state file.
 %   'progress'      - Show progress. ('On' or 'Off')
+%   'normalize'     - Normalize values with max value
 
 % Author: Rick Vink, rickvink@mit.edu h.w.vink@student.tudelft.nl
 % Affilitation: Timothy Lu, MIT
@@ -130,6 +131,13 @@ if ~isempty(entry)
 else
     options.progress = 'On';
 end
+% Normalize the values
+entry = find(strcmp(varargin,'normalize'));
+if ~isempty(entry)
+    options.normalize = varargin{entry+1};
+else
+    options.normalize = false;
+end
 
 %% Processing
 
@@ -187,6 +195,8 @@ for iSimulation = simulationTargets
         display_progress(iSimulation,length(simulationTargets))
     end
     
+    try
+        
     % Load database
     if strcmp(fileType,'state')
         % Check if multiple files should be glued together
@@ -233,10 +243,21 @@ for iSimulation = simulationTargets
         data = squeeze(state.(field)(location,:));
     end
     
+    % Normalize data
+    if options.normalize
+       data = data/max(max(data)); 
+    end
+    
     % Plot data
     hold on
     plot(time(1:step:end),data(1:step:end),plot_options{:});
     hold off
+    
+    catch
+        warningMessage = sprintf('Cannot plot the data fields %s:%s of simulation %d set %d',...
+            field,subfield,iSimulation,strainNumber);
+       warning(warningMessage) 
+    end
 end
 
 % Layout
