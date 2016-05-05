@@ -63,7 +63,7 @@ state = archive.load_file(options.set,options.simulation,...
 % Time
 time = state.Time.values;
 
-% Track the evolution of the all protein structures on chromosome
+% Track the evolution of the DnaA complex
 tmp = {state.Chromosome.complexBoundSites.vals};
 tTime = length(time);
 clear data
@@ -71,18 +71,14 @@ for iTime = 1:tTime;
     out = arrayfun(@(x)(sum(tmp{iTime}==x)),1:max(tmp{iTime}));
     matrix(1:length(out),iTime) = out;
 end
-% This matrix is a (pc by t) matrix where pc indicates the protein complex
-% number and t the time point. the pc number corresponds with the pc number
-% of the archive.info.ProteinComplex number.
-state.processedChromosome.matrix = matrix;
 
-% Total number of proteins
-tDnaA = length(options.DnaA.name);
 % Which DnaA molecules should be included in the analysis
+tDnaA = length(options.DnaA.name);
 options.DnaA.useNumber = arrayfun(@(iDnaA)(max(strcmp(options.DnaA.name{iDnaA},{options.DnaA.useName{:}}))),1:tDnaA);
 
 % Track the evolution of the DnaA complex from 2mers to 7mers
 evolution = matrix(options.DnaA.number(options.DnaA.useNumber),:);
+state.processedChromosome.evolveDnaAComplex
 tUse = length(options.DnaA.useName);
 % Check every time point the size of the largest DnaA complex
 state.processedChromosome.evolveDnaAComplex = max((evolution>0) .* repmat([1:tUse],tTime,1)');
@@ -142,14 +138,14 @@ end
 
 % % ----- DnaA proteins ----- %
 % Number of DnaA complex forms which are tracked
-tDnaA = max(state.processedChromosome.evolveDnaAComplex);
+tDnaA = max(state.extraChromosome.evolveDnaAComplex);
 color = 'y';
 opaquenessBase = 0.1;
 iSubRegion = 0;
 y = [0,0.2];
 for iDnaA = 1:tDnaA
     % See where the region is active
-    tmp = find(state.processedChromosome.evolveDnaAComplex==iDnaA);
+    tmp = find(state.extraChromosome.evolveDnaAComplex==iDnaA);
     % Determine where the regions start
     tmpStart = ([1, (tmp(2:end) - tmp(1:end-1) ~= 1)]==1);
     tmpStart = tmp(tmpStart);

@@ -8,7 +8,7 @@ function field = get_field_archive(archive, varargin)
 % Get initial structure
 field = archive;
 nField = varargin{1};
-if nargin > 1
+if nargin > 2
     lNumber = varargin{2};
 else
     lNumber = zeros(size(nField));

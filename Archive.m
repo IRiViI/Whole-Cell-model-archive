@@ -98,6 +98,7 @@ classdef Archive < dynamicprops
                 
             end
             
+            % Update the user
             fprintf('Whole cell model libararies opened\n');
             
         end
@@ -415,104 +416,18 @@ classdef Archive < dynamicprops
             % last or mean values of all the parameters are stored for
             % each state file. The files are called 'mean_compressed_state.mat' and
             % 'point_compressed_state.mat'.
-            %   'set'
-            %   'simulation'
-            %   'redo'
-            
-            % Load the options
-            if nargin > 1
-                options = struct(varargin{:});
-            else
-                options = struct();
-            end
-            % Set which sets should be compressed
-            if ~isfield(options,'set');
-                options.set = 1:length(this.set);
-            end
-            % Set which simulations of the set(s) should be compressed
-            if ~isfield(options,'simulation');
-                options.simulation = 0; % All simulations of the sets
-            end
-            % The data of a simulations is in its own directory
-            if ~isfield(options,'singleFolder');
-                options.singleFolder = 'On';
-            end
-            % Redo state
-            if ~isfield(options,'redo');
-                options.redo = 'Off';
-            end
-            
-            % Progress spacer
-            fprintf('Progress:\n      ')
-            
-            % Keep track of progress (this is the easiest way because it is
-            % possible to select an individual set, which would otherwise
-            % mess up my standard approach).
-            progressCounter = 0;
-            progresstSim  = 0;
-            for iSet = options.set
-                if options.simulation == 0
-                    % If all simulations should be compressed
-                    progresstSim = progresstSim + length(this.set(iSet).simulation);
-                else
-                    % If only a selected simulation should be compressed
-                    progresstSim = progresstSim + length(this.set(iSet).simulation(options.simulation));
-                end
-            end
-            
-            % For every set that should be compressed
-            for iSet = options.set
-                % Get the number of simulations in set in the case that all
-                % simultions should be compressed
-                if options.simulation == 0
-                    simulations = 1:length(this.set(iSet).simulation);
-                else
-                    simulations = options.simulation;
-                end
-                
-                % For every simulationprogresstSim = progresstSim + length(this.set(iSet).simulation);
-                for iSimulation = simulations
-                    
-                    % Folder name
-                    folder = this.set(iSet).simulation(iSimulation).folder;
-                    
-                    % If the compressed file do not yet exist
-                    if ~(exist([folder '/' 'mean_compressed_state.mat'],'file')) ||...
-                            ~(exist([folder '/' 'point_compressed_state.mat'],'file')) ||...
-                            strcmp(options.redo,'On')
-                        
-                        % Show progress
-                        display_progress(progressCounter,progresstSim);
-                        text = sprintf('Set: %d; \nSimulation: %d\nFolder: %s\n',iSet,iSimulation,folder);
-                        fprintf(text);
-                        
-                        % Compress state files
-                        compress_state_files_archive(folder,...
-                            'singleFolder',options.singleFolder,varargin{:});
-                        
-                        % Remove displayed text
-                        for letter = 1:length(text)
-                            fprintf('\b');
-                        end
-                        
-                    end
-                    
-                    % Keep track of progress
-                    progressCounter = progressCounter + 1;
-                    
-                    display_progress(progressCounter,progresstSim);
-                end
-                
-            end
-        end
-        
-        function copy_files(this,varargin)
-            %Copy target files to another location. This function is designed in order
-            %   to relocate files of the whole cell model.
             %
-            %   archive.copy_files('path/to/data/folder','path/to/destination',{'options.mat'})
+            %   'set'           - Select specific set. Set set to "0" to process all
+            %                     sets
+            %   'simulation'    - Select specific simualtion. Set simulation to "0" to
+            %                     process all simulations
+            %   'redo'          - redo simultions (true or false). default: false
             
-            copy_files(varargin{:});
+            % Check if whole cell model libraries are opened
+            this.check_WCM_libarary
+            
+            % Execute compression
+            compress_state_files_archive(this,varargin{:});
             
         end
         
@@ -988,14 +903,28 @@ classdef Archive < dynamicprops
             
             % Save archive if desired
             if this.settings.auto_save || (~auto)
+                
+                % Change structure name archive
                 archive = this;
+                
+                % Archive name
                 name = this.settings.name;
+                
+                % Check for additions
                 if auto
                     variable = 'Auto_save_';
                 else
                     variable = '';
                 end
-                save([variable name],'archive');
+                
+                % Update name
+                full_name = [variable name '.mat'];
+                
+                % Save archive
+                save(full_name,'archive');
+                
+                % Inform user
+                fprintf('Saved: %s\n', full_name);
             end
             
         end
@@ -1009,13 +938,41 @@ classdef Archive < dynamicprops
             
         end
         
-        function sims = simulations(this, set)
+        function sims = simulations(this, varargin)
             % tSimulation = archive.simulations(set)
             %
-            % Number of sims in set "set"
+            % Number of sims in sets "set"
+            % if set = 0, then all simulations are counted in all sets.
             
-            sims = length(this.set(set).simulation);
+            % Process input arguments
+            if nargin == 1
+                set = 0;
+            elseif nargin == 2
+                set = varargin{1};
+            else
+                warning('Too many input arguments');
+            end
             
+            % Total number of sets
+            tSet = this.sets;
+            
+            if set == 0
+                lSet = 1:tSet;
+            else
+                lSet = set;
+            end
+            
+            % Initiate sims counter
+            sims = 0;
+                
+            % For every set
+            for iSet = lSet
+                
+                % Add sims
+                sims = sims + length(this.set(iSet).simulation);
+                
+            end
+                
         end
         
         function this = add_info(this, varargin)
@@ -1299,11 +1256,44 @@ classdef Archive < dynamicprops
             %   'set'       - set number
             %  'simulation' - simulation number
             
+            % Check if whole cell model libraries are loaded; load
+            % libraries if missing
+            this.check_WCM_library('initiate',true);
             
+            % Execute analysis
             cell_cycle_archive(this, varargin{:});
             
         end
         
+        function check_WCM_library(this, varargin)
+            % Check if the library is added
+            
+            % Default settings
+            options.initiate = false;
+            
+            % Adjust options
+            inputOptions = struct(varargin{1:end});
+            fieldNames = fieldnames(inputOptions);
+            for i = 1:size(fieldNames,1)
+                options.(fieldNames{i}) = inputOptions.(fieldNames{i});
+            end
+            
+            % Get folders
+            tmp = path;
+            
+            % Find WCM library part
+            tmp = strfind(path,'/lib/absolutepath');
+            
+            if isempty(tmp)
+                if options.initiate
+                    archive.initiate_WCM;
+                else
+                    warningMessage = sprintf('It''s adviced to inititate whole cell model library first.\n Execute: archive.initiate_WCM.');
+                    warning(warningMessage);
+                end
+            end
+            
+        end
     end
     
 end
