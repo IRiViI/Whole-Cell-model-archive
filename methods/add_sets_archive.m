@@ -12,20 +12,20 @@ function archive = add_sets_archive(archive, varargin)
 %   "options.mat" that belongs to that specific simulation. These files
 %   could still be added to their folder at a later point of time.
 %
-%   'progress'      - Show progress of function. ('On' or 'Off'). Default
-%                     setting is 'On'.
+%   'progress'      - Show progress of function. (true or false). Default
+%                     setting is true.
 %  'knockout_filter'- Filter sets for matching genetic knockouts
 %   'model_filter'  - Filter sets for matching number of
 %                     molecules/reactions
-%   'new'           - Set 'new' to 'On' if the preexisting sets should be
+%   'new'           - Set 'new' to true if the preexisting sets should be
 %                     kept untouched by the newly added simulations
 %   'note'          - Add a commend to a set.
 %   'short'         - Seriously reduce the time find folder process by
-%                     setting 'short' to 'On'. However, it only works if
+%                     setting 'short' to true. However, it only works if
 %                     the simulation folders are at the same level in the
 %                     parent folder. Example: Same level: parent/child/sim1 and
 %                     parent/child/sim2; Not same level: parent/sim1 and
-%                     parent/child/sim2. Default: 'Off'
+%                     parent/child/sim2. Default: false
 
 % Mendatory inputs
 if nargin > 0
@@ -38,11 +38,11 @@ end
 options.initial_nSets = length(archive.set);
 
 % Default options
-options.progress = 'On';
-options.knockout_filter = 'On';
-options.model_filter = 'On';
-options.short = 'Off';
-options.new = 'Off';
+options.progress = true;
+options.knockout_filter = true;
+options.model_filter = true;
+options.short = false;
+options.new = false;
 options.note = '';
 
 % Adjust default options
@@ -57,7 +57,7 @@ end
 % options for find_files function ('short' will result in a less thorough
 % search in the directory (much faster).
 ffstruct = {};
-if strcmp(options.short,'On')
+if options.short
     ffstruct{end+1} = 'short';
 end
 
@@ -70,7 +70,7 @@ end
 file_path_structure = find_files(file,'options.mat','On',ffstruct{:});
 
 % Progress spacer
-if strcmp(options.progress,'On')
+if options.progress
     fprintf('Progress set simulations to archive:      ');
 end
 
@@ -85,7 +85,7 @@ missing_fields_set = {};
 for i_simulation = 1:t_simulation
     
     % Show progress
-    if strcmp(options.progress,'On')
+    if options.progress
         display_progress(i_simulation,t_simulation)
     end
     
@@ -147,7 +147,7 @@ for i_simulation = 1:t_simulation
     % --------- KO
     % Check all the knockouts if you want to make different sets for
     % different gene disrupted strains
-    if strcmp(options.knockout_filter,'On')
+    if options.knockout_filter
         set_match.KO = [];
         
         % Check if there are already some sets present in the archive list
@@ -156,7 +156,7 @@ for i_simulation = 1:t_simulation
             knockouts = archive.extract_data({'knockout'},'select','all');
             % remove the information of the preexisting sets when they
             % should not be checked
-            if strcmpi(options.new,'On')
+            if options.new
                 knockouts(1:options.initial_nSets) = {nan};
             end
         else
@@ -192,7 +192,7 @@ for i_simulation = 1:t_simulation
     % --------- molecules and reactions
     
     % Compare state information with preexisting sets
-    if strcmpi(options.model_filter,'On')
+    if options.model_filter
         % initiate set_match.system
         set_match.system = [];
         % Total number of sets
@@ -220,7 +220,7 @@ for i_simulation = 1:t_simulation
     
     % Update set number
     % Check if preexisting simulations should be ignored
-    if strcmpi(options.new,'On')
+    if options.new
         minSet = options.initial_nSets;
     else
         minSet = 1;

@@ -55,7 +55,7 @@ end
 
 % Progress
 iiSimulation = 0;
-fprintf('Progress:\n      ')
+fprintf('Progress:\n     ')
 display_progress(iiSimulation,ttSimulation);
 
 % For all targeted sets

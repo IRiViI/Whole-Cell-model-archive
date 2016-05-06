@@ -424,7 +424,7 @@ classdef Archive < dynamicprops
             %   'redo'          - redo simultions (true or false). default: false
             
             % Check if whole cell model libraries are opened
-            this.check_WCM_libarary
+            this.check_WCM_library('ask',true)
             
             % Execute compression
             compress_state_files_archive(this,varargin{:});
@@ -1270,6 +1270,7 @@ classdef Archive < dynamicprops
             
             % Default settings
             options.initiate = false;
+            options.ask = false;
             
             % Adjust options
             inputOptions = struct(varargin{1:end});
@@ -1284,14 +1285,51 @@ classdef Archive < dynamicprops
             % Find WCM library part
             tmp = strfind(path,'/lib/absolutepath');
             
+            % Process state
             if isempty(tmp)
+                
+                % Ask if they want to load the libraries
+                if options.ask
+                    while true
+                        answer = input(['Libraries of the whole cell model are missing\n'...
+                            'Would you like to load whole cell model libraries?\n'...
+                            '(yes/no)\n'],'s');
+                        if strcmpi(answer,'yes')
+                            options.initiate = true;
+                            break
+                        elseif strcmpi(answer,'no')
+                            options.initiate = false;
+                            break
+                        else
+                            fprintf(' -- INVALID INPUT -- \n')
+                        end
+                    end
+                end
+                
+                % Load libraries
                 if options.initiate
-                    archive.initiate_WCM;
+                    this.initiate_WCM;
                 else
                     warningMessage = sprintf('It''s adviced to inititate whole cell model library first.\n Execute: archive.initiate_WCM.');
                     warning(warningMessage);
                 end
             end
+            
+        end
+        
+        function this = template(this,varargin)
+            % This is template example for adding new function to the
+            % archive structure.
+            % archive.('setting1',setting1,'setting2',setting2,...)
+            
+            % Optionals:
+%             this.check_WCM_library;
+            
+            % Execute function
+            this = template_archive(this,varargin{:});
+            
+            % Optionals:
+%             this.save_archive(true);
             
         end
     end

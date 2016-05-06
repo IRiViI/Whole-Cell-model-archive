@@ -1,6 +1,12 @@
-function cell_cycle_archive(varargin)
 % Example
 %   cell_cycle_archive(archive,'set',1,'simulation',1)
+
+% Author: Rick Vink, rickvink@mit.edu h.w.vink@student.tudelft.nl
+% Affilitation: Timothy Lu, MIT
+% Last updated: 05/06/2016
+
+function cell_cycle_archive(varargin)
+
 
 % ----------------- Preparation processes ----------------- %
 
@@ -161,16 +167,25 @@ for iDnaA = 1:tDnaA
     % Add the regions to analysis structure
     for iRegion = 1:tRegion
         iSubRegion = iSubRegion + 1;
-        timeStart = time(tmpStart(iRegion)-1);
-        timeStop = time(tmpStop(iRegion));
-%         if tmpStart(iRegion) == tmpStop(iRegion)
-%             timeStart = timeStart - 1;
-%         end
-        analysis.dnaA(iSubRegion).time(1) = timeStart;
-        analysis.dnaA(iSubRegion).time(2) = timeStop;
         analysis.dnaA(iSubRegion).color = color;
         analysis.dnaA(iSubRegion).opaqueness = opaquenessBase*iDnaA;
         analysis.dnaA(iSubRegion).y = y;
+        try % Normal method
+            timeStart = time(tmpStart(iRegion)-1);
+            timeStop = time(tmpStop(iRegion));
+        catch % Exception: This is required at t = 0
+            timeStart = time(tmpStart(iRegion));
+            timeStop = time(tmpStop(iRegion));
+            if tmpStart(iRegion) == tmpStop(iRegion)
+                timeStop = time(2)/2;
+                analysis.dnaA(iSubRegion).opaqueness = 1;
+            end
+        end
+        %         if tmpStart(iRegion) == tmpStop(iRegion)
+        %             timeStart = timeStart - 1;
+        %         end
+        analysis.dnaA(iSubRegion).time(1) = timeStart;
+        analysis.dnaA(iSubRegion).time(2) = timeStop;
     end
 end
 % % Find the location of min an max value
