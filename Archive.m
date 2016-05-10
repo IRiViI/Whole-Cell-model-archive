@@ -430,8 +430,19 @@ classdef Archive < dynamicprops
             %   'simulation'    - Select specific simualtion. Set simulation to "0" to
             %                     process all simulations
             %   'redo'          - redo simultions (true or false). default: false
+            %   'minimal'       - Compress simulations without using the special
+            %                     libraries of the whole cell model. Note: This will
+            %                     result is a less complete point_compressed_state file
+            %   'warning'       - Turn off warnings ('warning',false)
+            %   'externalMultiCore'
+            %                   - Only compress one simulation specific simulation of
+            %                     the compression library. This is usefull when
+            %                     compressing files on a cluster. (see example).
+            %   'autoLoadWCM'   - Automatically load whole cell model
+            %                     library without asking
             
             options.minimal = false;
+            options.autoLoadWCM = false;
             
             % Adjust options
             inputOptions = struct(varargin{:});
@@ -442,7 +453,11 @@ classdef Archive < dynamicprops
             
             % Check if whole cell model libraries are opened
             if ~options.minimal
-                this.check_WCM_library('ask',true)
+                if options.autoloadWCM
+                    this.check_WCM_library('initiate',true)
+                else
+                    this.check_WCM_library('ask',true)
+                end
             end
             
             % Execute compression
