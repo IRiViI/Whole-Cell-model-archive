@@ -453,7 +453,7 @@ classdef Archive < dynamicprops
             
             % Check if whole cell model libraries are opened
             if ~options.minimal
-                if options.autoloadWCM
+                if options.autoLoadWCM
                     this.check_WCM_library('initiate',true)
                 else
                     this.check_WCM_library('ask',true)
