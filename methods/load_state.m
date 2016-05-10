@@ -39,15 +39,10 @@ for i = 3:nargin
 end
 
 % Get whether the fileTypeTag is direct or not
-C = strsplit(fileTypeTag,'.');
-if strcmp(C(end),'mat')
-   options.direct = 'On'; 
-else
-    options.direct = 'Off'; 
-end
+options.direct = check_direct(fileTypeTag);
 
 % Get the path to the file. It is faster when the fileTypeTag is precise
-if strcmp(options.direct,'Off')
+if ~options.direct
     % Get the file path
     fileDirRef = get_files(archive,fileTypeTag,strain);
     target = fileDirRef{number};

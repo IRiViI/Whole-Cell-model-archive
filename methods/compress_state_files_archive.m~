@@ -16,7 +16,6 @@
 %   'minimal'       - Compress simulations without using the special
 %                     libraries of the whole cell model. Note: This will
 %                     result is a less complete point_compressed_state file
-%   'warning'       - Turn off warnings ('warning',false)
 
 % Author: Rick Vink, rickvink@mit.edu h.w.vink@student.tudelft.nl
 % Affilitation: Timothy Lu, MIT
@@ -34,8 +33,6 @@ options.set = 0;
 options.simulation = 0;
 options.core = 1;
 options.redo = false;
-options.warning = true;
-options.minimal;
 
 % Adjust options
 inputOptions = struct(varargin{2:end});
@@ -135,10 +132,7 @@ if options.core > 1 % If multicore
 else % If not multicore
     for iSet = lSet
         
-        % Turn off the warnings
-        if ~options.warning
-            warning off;
-        end
+        warning off;
         
         % Simulations to process
         tSimulation = archive.simulations(iSet);
@@ -154,7 +148,7 @@ else % If not multicore
             folder = archive.set(iSet).simulation(iSimulation).folder;
             
             % Determine state files
-            [endState,meanState] = create_structures_from_files_all_fields(folder,options);
+            [endState,meanState] = create_structures_from_files_all_fields(folder);
             
             % Save
             save([folder '/' 'mean_compressed_state.mat'],'-struct','meanState');
@@ -173,7 +167,7 @@ fprintf('Done\n');
 
 end
 
-function [endState,meanState] = create_structures_from_files_all_fields(folder,options)
+function [endState,meanState] = create_structures_from_files_all_fields(folder)
 % Get the all the compressed states of the folder
 
 iTime = 1; % Frame counter
@@ -217,28 +211,26 @@ while true
                 end
                 meanState.(fieldNames{iField}).(subFieldNames{iSubField})(:,:,iTime) = mean(state.(fieldNames{iField}).(subFieldNames{iSubField})(:,:,:),3);
             catch
-                if ~options.minimal % If all the information should be included
+                try
+                    % Method 2: Process special structures that
+                    % contain separate fields
                     try
-                        % Method 2: Process special structures that
-                        % contain separate fields
-                        try
-                            endState.(fieldNames{iField}).(subFieldNames{iSubField})(iTime) = struct(state.(fieldNames{iField}).(subFieldNames{iSubField})(:,:,end));
-                        catch
-                            endState.(fieldNames{iField}).(subFieldNames{iSubField})(iTime) = struct(state.(fieldNames{iField}).(subFieldNames{iSubField}));
-                        end
+                        endState.(fieldNames{iField}).(subFieldNames{iSubField})(iTime) = struct(state.(fieldNames{iField}).(subFieldNames{iSubField})(:,:,end));
                     catch
-                        % Method 3: Process special structures that
-                        % do not contain serpate fields
+                        endState.(fieldNames{iField}).(subFieldNames{iSubField})(iTime) = struct(state.(fieldNames{iField}).(subFieldNames{iSubField}));
+                    end
+                catch
+                    % Method 3: Process special structures that
+                    % do not contain serpate fields
+                    try
+                        endState.(fieldNames{iField}).(subFieldNames{iSubField})(iTime).data = state.(fieldNames{iField}).(subFieldNames{iSubField})(:,:,end);
+                    catch
                         try
-                            endState.(fieldNames{iField}).(subFieldNames{iSubField})(iTime).data = state.(fieldNames{iField}).(subFieldNames{iSubField})(:,:,end);
+                            endState.(['extra_' fieldNames{iField}]).(subFieldNames{iSubField})(:,:,iTime) = state.(fieldNames{iField}).(subFieldNames{iSubField})(:,:,end);
                         catch
-                            try
-                                endState.(['extra_' fieldNames{iField}]).(subFieldNames{iSubField})(:,:,iTime) = state.(fieldNames{iField}).(subFieldNames{iSubField})(:,:,end);
-                            catch
-                                warningMessage = sprintf('Unable to process field %s subfield %s of file %s folder %s',...
-                                    (fieldNames{iField}), (subFieldNames{iSubField}), nState, folder);
-                                warning(warningMessage);
-                            end
+                            warningMessage = sprintf('Unable to process field %s subfield %s of file %s folder %s',...
+                                (fieldNames{iField}), (subFieldNames{iSubField}), nState, folder);
+                            warning(warningMessage);
                         end
                     end
                 end

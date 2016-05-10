@@ -5,10 +5,8 @@
 % Affilitation: Timothy Lu, MIT
 % Last updated: 05/06/2016
 
-function cell_cycle_archive(varargin)
-
-
-% ----------------- Preparation processes ----------------- %
+function varargout = cell_cycle_archive(varargin)
+%% ----------------- Preparation processes ----------------- %
 
 % Get archive
 archive = varargin{1};
@@ -18,6 +16,7 @@ options.fileTypeTag = 'point_compressed_state.mat'; % State file name
 options.alpha = 0.25;                               % Opaqueness of regions
 options.new = true;                                 % New figure
 options.info = 1;                                   % The information structure that should be used in this analysis
+options.simulation = 1;                             % Default simulation
 options.DnaA.name = {'DnaA-ADP',... % Investigate these enzymes on the chromosome
     'DnaA-ATP',...
     'DnaA-ATP 2mer',...
@@ -34,45 +33,66 @@ options.DnaA.useName = {'DnaA-ATP 2mer',... % The proteins that participate in D
     'DnaA-ATP 6mer',...
     'DnaA-ATP 7mer',...
     };
+options.segregation.input = {'ProteinMonomer','CobQ/CobB/MinD/ParA nucleotide binding domain';...
+    'ProteinComplex','mraZ protein';...
+    'ProteinMonomer','GTP-binding protein Era';...
+    'ProteinMonomer','GTPase1 Obg'};
 
 % Process inputs
-% mandatory: 'set';'simulation'
+% mandatory: 'set'
 tmpOptions = struct(varargin{2:end});
 field = fields(tmpOptions);
 for iField = 1:size(field,1)
     options.(field{iField}) = tmpOptions.(field{iField});
 end
 
+if ~isfield(options,'set')
+    error('Please specify the set to analyze (''set'',set)');
+end
+
 % Folder
 folder = archive.set(options.set).simulation(options.simulation).folder;
 
-% Check if the whole cell model tools are included
-%--- Should still be made...
+%% ----------------- Processes information ----------------- %
 
-% ----------------- Processes information ----------------- %
-
-enzyme = options.DnaA.name;
-tEnzyme = length(enzyme);
-for iProtein = 1:tEnzyme
+% Find DnaA protein numbers in info structure
+protein = options.DnaA.name;
+tProtein = length(protein);
+for iProtein = 1:tProtein
     % Find the DnaA enzymes
-    iiProtein = find(archive.infocmp(enzyme{iProtein},{'info','ProteinComplex','name'},[1,0]));
+    iiProtein = find(archive.infocmp(protein{iProtein},{'info','ProteinComplex','name'},[1,0]));
     % Enzyme number
     options.DnaA.number(iProtein) = iiProtein(1);
 end
 
-% ----------------- Processes state files ----------------- %
+% Find segregation protein numbers in info structure
+options.segregation.name = options.segregation.input(:,2);
+options.segregation.type = options.segregation.input(:,1);
+form = 'mature';
+tProtein = length(options.segregation.name);
+for iProtein = 1:tProtein
+    % Find the Segregation enzyme numbers
+    iiProtein = find(archive.infocmp(options.segregation.name{iProtein},{'info',options.segregation.type{iProtein},'name'},[1,0]));
+    % Find the forms of the enzyme
+    iiForm = {archive.info.(options.segregation.type{iProtein})(iiProtein).form};
+    % Enzyme number of the correct form
+    options.segregation.number(iProtein) = iiProtein(find(strcmpi(iiForm,form)));
+end
 
-% Get basic state files
+%% ----------------- Processes state files ----------------- %
+
+% ---- Get basic state files
 state = archive.load_file(options.set,options.simulation,...
     'fileTypeTag',options.fileTypeTag);
 
-% Time
+% ---- Time
 time = state.Time.values;
+tTime = length(time);
 
+% ---- DnaA
 % Track the evolution of the all protein structures on chromosome
 tmp = {state.Chromosome.complexBoundSites.vals};
-tTime = length(time);
-clear data
+clear data matrix
 for iTime = 1:tTime;
     out = arrayfun(@(x)(sum(tmp{iTime}==x)),1:max(tmp{iTime}));
     matrix(1:length(out),iTime) = out;
@@ -80,20 +100,32 @@ end
 % This matrix is a (pc by t) matrix where pc indicates the protein complex
 % number and t the time point. the pc number corresponds with the pc number
 % of the archive.info.ProteinComplex number.
-state.processedChromosome.matrix = matrix;
-
+state.processedChromosome.proteinComplexChromosome = matrix;
 % Total number of proteins
 tDnaA = length(options.DnaA.name);
 % Which DnaA molecules should be included in the analysis
 options.DnaA.useNumber = arrayfun(@(iDnaA)(max(strcmp(options.DnaA.name{iDnaA},{options.DnaA.useName{:}}))),1:tDnaA);
-
 % Track the evolution of the DnaA complex from 2mers to 7mers
 evolution = matrix(options.DnaA.number(options.DnaA.useNumber),:);
 tUse = length(options.DnaA.useName);
 % Check every time point the size of the largest DnaA complex
 state.processedChromosome.evolveDnaAComplex = max((evolution>0) .* repmat([1:tUse],tTime,1)');
 
-% ----------------- Determine regions ----------------- %
+% ----- Segregation enzymes ----- %
+clear matrix
+tProtein = length(options.segregation.number);
+for iProtein = 1:tProtein
+    data = squeeze(state.(options.segregation.type{iProtein}).counts((options.segregation.number(iProtein)),1,:));
+    matrix(iProtein,:) = data;
+end
+state.processedSegregation.matrix = matrix;
+state.processedSegregation.evolution = sum(state.processedSegregation.matrix>1);
+
+% ---- super coiling
+% Get the number of coiled regions
+state.processedChromosome.coiling = arrayfun(@(x)(size(state.Chromosome.superhelicalDensity(x).vals,1)),1:tTime);
+
+%% ----------------- Determine regions ----------------- %
 
 % Time and Volume
 time = squeeze(state.Time.values);
@@ -103,7 +135,7 @@ volume = squeeze(state.Geometry.volume);
 % Color
 analysis.pinching.color = 'r';
 % y location
-analysis.pinching.y = [0.2 1];
+analysis.pinching.y = [0.4 1];
 data = squeeze(state.Geometry.pinchedDiameter);
 % Find the location of min an max value
 maxValue=find(data==max(data));
@@ -126,7 +158,7 @@ end
 % Color
 analysis.gene_duplication.color = 'b';
 % y location
-analysis.gene_duplication.y = [0.2 1];
+analysis.gene_duplication.y = [0.4 1];
 data = squeeze(sum(state.Chromosome.geneCopyNumbers,1));
 % Find the location of min an max value
 maxValue=find(data==max(data));
@@ -146,62 +178,39 @@ else % If no gene duplication is detected
 end
 
 
-% % ----- DnaA proteins ----- %
+% ----- DnaA proteins ----- %
 % Number of DnaA complex forms which are tracked
-tDnaA = max(state.processedChromosome.evolveDnaAComplex);
 color = 'y';
 opaquenessBase = 0.1;
-iSubRegion = 0;
 y = [0,0.2];
-for iDnaA = 1:tDnaA
-    % See where the region is active
-    tmp = find(state.processedChromosome.evolveDnaAComplex==iDnaA);
-    % Determine where the regions start
-    tmpStart = ([1, (tmp(2:end) - tmp(1:end-1) ~= 1)]==1);
-    tmpStart = tmp(tmpStart);
-    % Determine where the regions stop
-    tmpStop = [(tmp(1:end-1) - tmp(2:end) ~= -1),1]==1;
-    tmpStop = tmp(tmpStop);
-    % Number of regions found with this specific form of DnaA complex
-    tRegion = length(tmpStart);
-    % Add the regions to analysis structure
-    for iRegion = 1:tRegion
-        iSubRegion = iSubRegion + 1;
-        analysis.dnaA(iSubRegion).color = color;
-        analysis.dnaA(iSubRegion).opaqueness = opaquenessBase*iDnaA;
-        analysis.dnaA(iSubRegion).y = y;
-        try % Normal method
-            timeStart = time(tmpStart(iRegion)-1);
-            timeStop = time(tmpStop(iRegion));
-        catch % Exception: This is required at t = 0
-            timeStart = time(tmpStart(iRegion));
-            timeStop = time(tmpStop(iRegion));
-            if tmpStart(iRegion) == tmpStop(iRegion)
-                timeStop = time(2)/2;
-                analysis.dnaA(iSubRegion).opaqueness = 1;
-            end
-        end
-        %         if tmpStart(iRegion) == tmpStop(iRegion)
-        %             timeStart = timeStart - 1;
-        %         end
-        analysis.dnaA(iSubRegion).time(1) = timeStart;
-        analysis.dnaA(iSubRegion).time(2) = timeStop;
-    end
-end
-% % Find the location of min an max value
-% maxValue=find(data==max(data));
-% minValue=find(data==min(data));
-% % % Find the location of min an max value
-% maxValue=find(data==max(data,[],1));
-% minValue=find(data==min(data));
-% % Save time values
-% analysis.gene_duplication.time(1) = time(minValue(end));
-% analysis.gene_duplication.time(2) = time(maxValue(1));
-% % Save min and max values
-% analysis.gene_duplication.value(1) = min(data);
-% analysis.gene_duplication.value(2) = max(data);
 
-% ----------------- Visualization processes ----------------- %
+analysis = get_regions(analysis,...
+    state,'processedChromosome','evolveDnaAComplex',...
+    'DnaA',color,opaquenessBase,y);
+
+% ----- Segregation enzymes ----- %
+color = 'y';
+opaquenessBase = 0.1;
+y = [0.2,0.4];
+
+analysis = get_regions(analysis,...
+    state,'processedSegregation','evolution',...
+    'segregation_proteins',color,opaquenessBase,y);
+
+% ----- Segregation completion ----- %
+analysis.segregationCompletion.color = 'b';
+analysis.segregationCompletion.opaqueness = options.alpha;
+analysis.segregationCompletion.y = [0.9,1];
+start = find(squeeze(state.Chromosome.segregated)==1,1,'first');
+if ~isempty(start)
+    analysis.segregationCompletion.time(1) = time(start);
+    analysis.segregationCompletion.time(2) = time(find(squeeze(state.Chromosome.segregated)==1,1,'last'));
+else
+    analysis = rmfield(analysis,'segregationCompletion');
+end
+
+
+%% ----------------- Visualization processes ----------------- %
 
 % New figure
 if options.new
@@ -235,5 +244,68 @@ for iField = 1:tField
 end
 hold 'off'
 
+%% Set output arguments
+
+varargout{1} = analysis;     % Contains the region information
+varargout{2} = state;        % state file + additional information (processedX)
+
+end
+
+function analysis = get_regions(varargin)
+% Add the different regions form a 1 by n array
+
+analysis = varargin{1};
+state = varargin{2};
+field = varargin{3};
+subfield = varargin{4};
+fieldName = varargin{5};
+color = varargin{6};
+opaquenessBase = varargin{7};
+y = varargin{8};
+
+iSubRegion = 0;
+time = squeeze(state.Time.values);
+
+% Get max number of types of fields
+tProtein = max(state.(field).(subfield));
+
+for iProtein = 1:tProtein
+    % See where the region is active
+    tmp = find(state.(field).(subfield)==iProtein);
+    if ~isempty(tmp)
+        % Determine where the regions start
+        tmpStart = ([1, (tmp(2:end) - tmp(1:end-1) ~= 1)]==1);
+        tmpStart = tmp(tmpStart);
+        % Determine where the regions stop
+        tmpStop = [(tmp(1:end-1) - tmp(2:end) ~= -1),1]==1;
+        tmpStop = tmp(tmpStop);
+        % Number of regions found with this specific form of DnaA complex
+        tRegion = length(tmpStart);
+    else
+        % If region does not exist
+        tRegion = 0;
+    end
+    
+    % Add the regions to analysis structure
+    for iRegion = 1:tRegion
+        iSubRegion = iSubRegion + 1;
+        analysis.(fieldName)(iSubRegion).color = color;
+        analysis.(fieldName)(iSubRegion).opaqueness = opaquenessBase*iProtein;
+        analysis.(fieldName)(iSubRegion).y = y;
+        try % Normal method
+            timeStart = time(tmpStart(iRegion)-1);
+            timeStop = time(tmpStop(iRegion));
+        catch % Exception: This is required at t = 0
+            timeStart = time(tmpStart(iRegion));
+            timeStop = time(tmpStop(iRegion));
+            if tmpStart(iRegion) == tmpStop(iRegion)
+                timeStop = time(2)/2;
+                analysis.(fieldName)(iSubRegion).opaqueness = 1;
+            end
+        end
+        analysis.(fieldName)(iSubRegion).time(1) = timeStart;
+        analysis.(fieldName)(iSubRegion).time(2) = timeStop;
+    end
+end
 
 end
