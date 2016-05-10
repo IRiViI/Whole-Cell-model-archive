@@ -17,10 +17,19 @@
 %                     libraries of the whole cell model. Note: This will
 %                     result is a less complete point_compressed_state file
 %   'warning'       - Turn off warnings ('warning',false)
+%   'externalMultiCore'
+%                   - Only compress one simulation specific simulation of 
+%                     the compression library. This is usefull when
+%                     compressing files on a cluster.
+%
+%   Examples:
+%       SBATCH ARRAY                                                      
+%       #SBATCH --array=1-100    
+%       compress_state_files_archive('externalMultiCore',n)
 
 % Author: Rick Vink, rickvink@mit.edu h.w.vink@student.tudelft.nl
 % Affilitation: Timothy Lu, MIT
-% Last updated: 05/05/2016
+% Last updated: 10/05/2016
 
 function compress_state_files_archive(varargin)
 
@@ -35,7 +44,8 @@ options.simulation = 0;
 options.core = 1;
 options.redo = false;
 options.warning = true;
-options.minimal;
+options.minimal = false;
+options.externalMultiCore = 0;
 
 % Adjust options
 inputOptions = struct(varargin{2:end});
@@ -81,40 +91,42 @@ iiSimulation = 0;
 fprintf('Progress:\n     ')
 display_progress(iiSimulation,ttSimulation);
 
-if options.core > 1 % If multicore
+% Initate simulation library (This makes it easier to to use muliple cores)
+libSimulation = [];
+
+% Generate simulation library
+for iSet = lSet
     
-    % Turn off warning messages
-    pctRunOnAll warning off
+    % Simulations to process
+    tSimulation = archive.simulations(iSet);
+    if options.simulation == 0
+        lSimulation = 1:tSimulation;
+    else
+        lSimulation = options.simulation;
+    end
     
-    % Initate simulation library
-    libSimulation = [];
-    
-    % Generate simulation library
-    for iSet = lSet
+    % Put all the targeted simulations of the targeted set in the library
+    for iSimulation = lSimulation
         
-        % Simulations to process
-        tSimulation = archive.simulations(iSet);
-        if options.simulation == 0
-            lSimulation = 1:tSimulation;
-        else
-            lSimulation = options.simulation;
-        end
-        
-        % Put all the targeted simulations of the targeted set in the library
-        for iSimulation = lSimulation
-            
-            % Generate library for all the simulation targets
-            libSimulation(end+1,:) = [iSet,iSimulation];
-            
-        end
+        % Generate library for all the simulation targets
+        libSimulation(end+1,:) = [iSet,iSimulation];
         
     end
     
-    % All the simulations targeted
-    tSim = length(libSimulation);
+end
+
+% All the simulations targeted
+tSim = length(libSimulation);
+
+if options.core > 1 % If multicore
+    
+    % Turn off warning messages
+    if ~options.warning
+        pctRunOnAll warning off
+    end
     
     % Process all the simulations in the library
-    parfor iSim = tSim
+    parfor iSim = 1:tSim
         
         % Get the simulation and set number
         iSet = libSimulation(iSim,1);
@@ -132,41 +144,45 @@ if options.core > 1 % If multicore
         
         fprintf('Done: set %d simulation %d (folder %s)\n',iSet,iSim,folder);
     end
+    
 else % If not multicore
-    for iSet = lSet
-        
-        % Turn off the warnings
-        if ~options.warning
-            warning off;
-        end
-        
-        % Simulations to process
-        tSimulation = archive.simulations(iSet);
-        if options.simulation == 0
-            lSimulation = 1:tSimulation;
-        else
-            lSimulation = options.simulation;
-        end
-        
-        for iSimulation = lSimulation
-            
-            % Folder
-            folder = archive.set(iSet).simulation(iSimulation).folder;
-            
-            % Determine state files
-            [endState,meanState] = create_structures_from_files_all_fields(folder,options);
-            
-            % Save
-            save([folder '/' 'mean_compressed_state.mat'],'-struct','meanState');
-            save([folder '/' 'point_compressed_state.mat'],'-struct','endState');
-            
-            % Progress
-            iiSimulation = iiSimulation + 1;
-            display_progress(iiSimulation,ttSimulation);
-            
-        end
-        
+    
+    % Turn off the warnings
+    if ~options.warning
+        warning off;
     end
+    
+    % Range of library to compress
+    lSim = 1:tSim;
+    
+    % Select only one simultion of the library when dealing with a mulit
+    % core processor which is not external of the matlab program
+    if options.externalMultiCore ~= 0
+        lSim = options.externalMultiCore;
+    end
+    
+    % Process all the simulations in the library
+    for iSim = lSim
+        
+        % Get the simulation and set number
+        iSet = libSimulation(iSim,1);
+        iSimulation = libSimulation(iSim,2);
+        
+        % Folder
+        folder = archive.set(iSet).simulation(iSimulation).folder;
+        
+        % Determine state files
+        [endState,meanState] = create_structures_from_files_all_fields(folder);
+        
+        % Save
+        save([folder '/' 'mean_compressed_state.mat'],'-struct','meanState');
+        save([folder '/' 'point_compressed_state.mat'],'-struct','endState');
+        
+        % Progress
+        iiSimulation = iiSimulation + 1;
+        display_progress(iiSimulation,ttSimulation);
+    end
+    
 end
 
 fprintf('Done\n');
@@ -259,7 +275,7 @@ end
 
 function parsave(varargin)
 
-    % save to change the '-struct' components of saving or something...
+% save to change the '-struct' components of saving or something...
 
-    save(varargin{:});
+save(varargin{:});
 end

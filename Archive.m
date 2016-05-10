@@ -1,3 +1,11 @@
+% Create archive of whole cell model
+%   archive = Archive();
+%   archive.add_sets('/home/path/to/sets');
+
+% Author: Rick Vink, rickvink@mit.edu h.w.vink@student.tudelft.nl
+% Affilitation: Timothy Lu, MIT
+% Last updated: 10/05/2016
+
 classdef Archive < dynamicprops
     
     properties
@@ -423,8 +431,19 @@ classdef Archive < dynamicprops
             %                     process all simulations
             %   'redo'          - redo simultions (true or false). default: false
             
+            options.minimal = false;
+            
+            % Adjust options
+            inputOptions = struct(varargin{:});
+            fieldNames = fieldnames(inputOptions);
+            for i = 1:size(fieldNames,1)
+                options.(fieldNames{i}) = inputOptions.(fieldNames{i});
+            end
+            
             % Check if whole cell model libraries are opened
-            this.check_WCM_library('ask',true)
+            if ~options.minimal
+                this.check_WCM_library('ask',true)
+            end
             
             % Execute compression
             compress_state_files_archive(this,varargin{:});
