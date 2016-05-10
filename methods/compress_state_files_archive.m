@@ -20,12 +20,20 @@
 %   'externalMultiCore'
 %                   - Only compress one simulation specific simulation of 
 %                     the compression library. This is usefull when
-%                     compressing files on a cluster.
+%                     compressing files on a cluster. (see example).
 %
 %   Examples:
-%       SBATCH ARRAY                                                      
+%       compress_state_files_archive(archive,'set',1,'redo',true)
+%           If you want to redo the compression of the simulations of set 1
+%
+%       Cluster:
+%       #!/bin/bash                                                     
 %       #SBATCH --array=1-100    
-%       compress_state_files_archive('externalMultiCore',n)
+%       matlab "load('archive');
+%       compress_state_files_archive('externalMultiCore',n); 
+%       exit;"
+%       
+%       
 
 % Author: Rick Vink, rickvink@mit.edu h.w.vink@student.tudelft.nl
 % Affilitation: Timothy Lu, MIT
@@ -91,7 +99,9 @@ iiSimulation = 0;
 fprintf('Progress:\n     ')
 display_progress(iiSimulation,ttSimulation);
 
-% Initate simulation library (This makes it easier to to use muliple cores)
+% Simulation library (This makes it easier to to use muliple cores)
+
+% Initate simulation library 
 libSimulation = [];
 
 % Generate simulation library
@@ -116,7 +126,7 @@ for iSet = lSet
 end
 
 % All the simulations targeted
-tSim = length(libSimulation);
+tSim = size(libSimulation,1);
 
 if options.core > 1 % If multicore
     
@@ -136,13 +146,14 @@ if options.core > 1 % If multicore
         folder = archive.set(iSet).simulation(iSimulation).folder;
         
         % Determine state files
-        [endState,meanState] = create_structures_from_files_all_fields(folder);
+        [endState,meanState] = create_structures_from_files_all_fields(folder,options);
         
         % Save
         parsave([folder '/' 'mean_compressed_state.mat'],'-struct','meanState');
         parsave([folder '/' 'point_compressed_state.mat'],'-struct','endState');
         
-        fprintf('Done: set %d simulation %d (folder %s)\n',iSet,iSim,folder);
+        % Progress
+        fprintf('(%d) Done: set %d simulation %d (folder %s)\n',iSim,iSet,iSimulation,folder);
     end
     
 else % If not multicore
@@ -172,15 +183,19 @@ else % If not multicore
         folder = archive.set(iSet).simulation(iSimulation).folder;
         
         % Determine state files
-        [endState,meanState] = create_structures_from_files_all_fields(folder);
+        [endState,meanState] = create_structures_from_files_all_fields(folder,options);
         
         % Save
         save([folder '/' 'mean_compressed_state.mat'],'-struct','meanState');
         save([folder '/' 'point_compressed_state.mat'],'-struct','endState');
         
         % Progress
-        iiSimulation = iiSimulation + 1;
-        display_progress(iiSimulation,ttSimulation);
+        if options.externalMultiCore == 0
+            iiSimulation = iiSimulation + 1;
+            display_progress(iiSimulation,ttSimulation);
+        else
+            fprintf('(%d) Done: set %d simulation %d (folder %s)\n',iSim,iSet,iSimulation,folder);
+        end
     end
     
 end
