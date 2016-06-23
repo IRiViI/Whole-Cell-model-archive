@@ -236,7 +236,8 @@ for iSimulation = simulationTargets
     if strcmp(fileType,'state')
         % For state files
         time = squeeze(state.Time.values);
-        data = squeeze(state.(field).(subfield)(molecule,location,:));
+        data = state.(field).(subfield)(molecule,location,:);
+        data = shiftdim(data,5)';
     elseif strcmp(fileType,'summary')
         % For summary files
         time = squeeze(state.time);
@@ -250,7 +251,7 @@ for iSimulation = simulationTargets
     
     % Plot data
     hold on
-    plot(time(1:step:end),data(1:step:end),plot_options{:});
+    plot(time(1:step:end),data(:,1:step:end),plot_options{:});
     hold off
     
     catch

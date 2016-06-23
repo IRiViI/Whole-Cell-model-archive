@@ -46,7 +46,7 @@ if ~options.direct
     % Get the file path
     fileDirRef = get_files(archive,fileTypeTag,strain);
     target = fileDirRef{number};
-else
+else % Direct
     % Get the file path
     target = [archive.set(strain).simulation(number).folder '/' fileTypeTag];
 end

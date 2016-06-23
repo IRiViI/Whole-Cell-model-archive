@@ -74,7 +74,7 @@ if strcmp(options.progress,'On')
    fprintf('Progress:\n     ');
 end
 
-% -------- Some initiation stuff -------- %
+% -------- Process inputs -------- %
 
 % Number of strains
 tStrain = length(archive.set);
@@ -89,7 +89,10 @@ if ischar(options.set)
         strainList = 1:tStrain;
     end
 else
-    if max(options.set) > 1 && length(options.set) < tStrain
+    if options.set == 0
+        options.set = 'all';
+        strainList = 1:tStrain;
+    elseif max(options.set) > 1 && length(options.set) < tStrain
         strainList = options.set;
     else
         sets = 1:tStrain;
@@ -145,21 +148,11 @@ for iStrain = strainList
     % Remove variation of non selected reactions
     tempMatrix(~include) = 1;
     % Add the vector to the matrix that should hold the values of all sets
-    aveMatrix(:,counter) = tempMatrix(1:end);
-    
-%     % Total number of simulations
-%     tSimulation = length(archive.set(iStrain).simulation);
-%     
-%     % For every simulation
-%     for iSimulation = 1:tSimulation
-%         
-%         % Add the data values of the specific simulation to the matrix
-%         tempMatrix = archive.set(iStrain).simulation(iSimulation).snapShot(options.snap_shot).values;
-%         % Remove non selected reactions
-%         tempMatrix = tempMatrix(include);
-%         fullMatrix(:,end+1) = tempMatrix(1:end);
-%     
-%     end
+    try
+        aveMatrix(:,counter) = tempMatrix(1:end);
+    catch
+        error(['Size dismatch for strain' num2str(iStrain)]);
+    end
     
 end
 
@@ -229,6 +222,7 @@ if isfield(options,'colortreshold')
 else
     D = dendrogram(z,0);
 end
+
 
 % -------- Set outputs -------- %
 

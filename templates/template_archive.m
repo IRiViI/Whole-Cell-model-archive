@@ -132,7 +132,7 @@ for iSet = lSet
         tSimulation = archive.simulations(iSet);    % Get the total number of simulations of the current set
         lSimulation = 1:tSimulation;                % List of simulations that should be analyzed includes all the simulations of the current set
     else
-        lSimulation = options.set;                  % List of simulations that will be analyzed includes all the simulations according to the inputs
+        lSimulation = options.simulation;                  % List of simulations that will be analyzed includes all the simulations according to the inputs
         tSimulation = length(lSimulation);          % Number of simulations to analyze
     end
     

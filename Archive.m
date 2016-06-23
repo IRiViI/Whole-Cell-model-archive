@@ -34,13 +34,16 @@ classdef Archive < dynamicprops
             % Add paths
             this.add_paths();
             
-            % Set name of archive. This name is used by the function 
+            % Set name of archive. This name is used by the function
             % archive.save_archive.
             this.settings.name = 'new_archive';
             
             % Auto save state. The archive is automatically saved after
             % certain methods when auto_save is true
             this.settings.auto_save = true;
+            
+            % Make output dir if does not exist
+            [~,~,~] = mkdir([this.settings.dir '/' 'output']);
             
         end
         
@@ -51,6 +54,17 @@ classdef Archive < dynamicprops
             addpath([this.settings.dir '/methods']);
             addpath([this.settings.dir '/functions']);
             addpath([this.settings.dir '/data_base']);
+            
+            % Load function in folder "other"
+            lOther = dir([this.settings.dir '/functions' '/others']);
+            tOther = length(lOther);
+            % Check all the contend in the folder "/functions/others"
+            for iOther = 1:tOther
+                other = lOther(iOther);
+                if other.isdir && ~(strcmp(other.name,'.') || strcmp(other.name,'..'))
+                    addpath([this.settings.dir '/functions' '/others' '/' other.name]);
+                end
+            end
         end
         
         function this = initiate_WCM(this)
@@ -59,7 +73,7 @@ classdef Archive < dynamicprops
             % Save current directory
             current_directory = cd;
             % Check how many times a new directory is set
-            attempt = 1; 
+            attempt = 1;
             
             % Try to open while not succeeded
             while true
@@ -112,9 +126,35 @@ classdef Archive < dynamicprops
         end
         
         function this = add_sets(this, varargin)
-            % Add sets and/or simulations to existing sets
+            %This functions adds sets to the archive object. It looks for the
+            %   options.mat files within the folder and its subfolders.
+            %   The information about the folders and seeds of these simulations are
+            %   ordered accordingly in the output structure.
             %
-            %   archive.add_sets('path/to/simulations/dir')
+            %   archive.add_sets('path/to/folder')
+            %   This directory should contain the "options.mat" and a state.mat
+            %   (like: state-0.mat or mean_compressed_state.mat) file of the simulation
+            %   in order to execute this function. The other files that should be
+            %   analysed using the output list should be in the same folder as the
+            %   "options.mat" that belongs to that specific simulation. These files
+            %   could still be added to their folder at a later point of time.
+            %
+            %   'type'          - label the simulation with a type. Simulations are
+            %                     only added to a set if their types match.
+            %   'progress'      - Show progress of function. (true or false). Default
+            %                     setting is true.
+            %  'knockout_filter'- Filter sets for matching genetic knockouts
+            %   'model_filter'  - Filter sets for matching number of
+            %                     molecules/reactions
+            %   'new'           - Set 'new' to true if the preexisting sets should be
+            %                     kept untouched by the newly added simulations
+            %   'note'          - Add a commend to a set.
+            %   'short'         - Seriously reduce the time find folder process by
+            %                     setting 'short' to true. However, it only works if
+            %                     the simulation folders are at the same level in the
+            %                     parent folder. Example: Same level: parent/child/sim1 and
+            %                     parent/child/sim2; Not same level: parent/sim1 and
+            %                     parent/child/sim2. Default: false
             %
             
             add_sets_archive(this,varargin{:});
@@ -145,6 +185,12 @@ classdef Archive < dynamicprops
             fprintf('Set categories to info list:\n');
             this.extract_from_xls_file('info.Metabolite.ID','info.Metabolite.Category',...
                 'mmc4.xlsx','S3G-Metabolites',1,16);
+            fprintf('Set enzymes to stoichiometric reactions:\n');
+            this.extract_from_xls_file('stoichiometry.reaction.id','stoichiometry.reaction.protein',...
+                'mmc4.xlsx','S3O-Reactions',1,13);
+            % Make an unique list of proteins to add to stoichiometry
+            % structure
+            this.add_protein_elements_to_stoichiometry
             fprintf('Done\n');
             
         end
@@ -316,56 +362,80 @@ classdef Archive < dynamicprops
         end
         
         function cyto_viz(this,varargin)
-            % Visualize data
+            % Add data values to WCM pathway visualization in Cytoscape.
+            %   3 input have to be set in order to change the value of a node or edge.
+            %   1) 'proteinComplexState': Set the state of the node or edge to true
+            %   2) 'proteinComplex': Give the ids of the elements of the nodes and
+            %       edges
+            %   3) 'proteinComplexData': Give the values of the nodes and edges
+            %   On default: the 2nd input is set to the same id as the the state file
+            %   outputs. So this options can be left untouched in some cases.
+            %   Expection: metabolicReaction has two different 'metabolicReactionData'
+            %   inputs instead 'colorData' and 'thicknessData'
             %
-            % archive.cyto_viz(''
+            %   Options:
+            %   Data input options:
+            %   'proteinComplexState'
+            %   'proteinComplex'
+            %   'proteinComplexData'
+            %   'proteinMonomerState'
+            %   'proteinMonomer'
+            %   'proteinMonomerData'
+            %   'metaboliteState'
+            %   'metabolite'
+            %   'metaboliteData'
+            %   'metabolicReactionState'
+            %   'metabolicReaction'
+            %   'colorData'
+            %   'thicknessData'
+            %   Other options:
+            %   'inputFile'                 - path to input xgmml file
+            %   'outputFile'                - name output file
+            %   'progress'                  - turn progress on or off (true or false)
+            %
+            %   Example 1 (change color of protein nodes, of specific proteins):
+            %       archive.cyto_viz(...
+            %           'proteinComplexState',true,...
+            %           'proteinComplexData',proteinComplexData,...
+            %           'proteinComplex',proteinComplex);
+            %       % where:
+            %       proteinComplex(1).ID = 'DNA_GYRASE';    % Protein id
+            %       proteinComplex(1).form = 'mature';      % Protein form
+            %       proteinComplexData(1,:) = [1,1,1,1,1,1]; % Values for all 6
+            %                                                   locations
+            %       proteinComplex(2).ID = 'MG_215_TETRAMER';
+            %       proteinComplex(2).form = 'mature';
+            %       proteinComplexData(2,:) = [0,0,0,0,0,0];
+            %
+            %   Example 2 (Change color of all the metabolite nodes):
+            %       archive.cyto_viz(...
+            %           'metaboliteState',true,...
+            %           'metaboliteData',1-metaboliteData);
+            %       % 'metabolite' not required because it set on default to include
+            %       %   all the metabolites according to the state files
+            %       % where:
+            %       [stAveWTV,siAveWTV] = archive.average_value(1,2500,...
+            %           'Metabolite','counts',1:6);
+            %       metA = squeeze(stAveWTV);
+            %       metW = squeeze(siAveWTV);
+            %       metaboliteData = (metW(:,:,1) - metA(:,:))./metA(:,:);
+            %
+            %   Example 3 (Add metabolite and metabolic reaction data)
+            %       archive.cyto_viz('metaboliteState',true,...
+            %           'metaboliteData',1-squeeze(tmet),...
+            %           'metabolicReactionState',true,...
+            %           'colorData',1-squeeze(tfluxs))
+            %       where:
+            %       [stAveWTV,siAveWTV] = archive.average_value(1,2500,...
+            %           'Metabolite','counts',1:6);
+            %       [stAveWT,siAveWT] = archive.average_value(1,2500,...
+            %           'MetabolicReaction','fluxs',1);
+            %       metA = squeeze(stAveWTV);
+            %       metW = squeeze(siAveWTV);
+            %       tmet = (metW(:,:,1) - metA(:,:))./metA(:,:);
+            %       tfluxs = (siAveWT(:,:,:,1) - stAveWT)./stAveWT;
             
-            % Default settings
-            options.file = 'Default_layout.xgmml';
-            options.reactID = this.info.MetabolicReaction.ID;
-            options.metaboliteID = this.info.Metabolite.ID;
-            options.progress = 'On';
-            options.Metabolite = 'Off';
-            options.MetabolicReaction = 'Off';
-            
-            % Adjust options
-            inputOptions = struct(varargin{:});
-            fieldNames = fieldnames(inputOptions);
-            for i = 1:size(fieldNames,1)
-                options.(fieldNames{i}) = inputOptions.(fieldNames{i});
-            end
-            
-            % Default values if left flux empty
-            tReaction = length(this.info.MetabolicReaction.ID);
-            colorData = 0.5*ones(1,tReaction);
-            thicknessData = 0.5*ones(1,tReaction);
-            
-            % Apply flux values
-            if strcmp(options.MetabolicReaction,'On')
-                if isfield(options,'colorData')
-                    colorData = options.colorData;
-                end
-                if isfield(options,'thicknessData')
-                    thicknessData = options.thicknessData;
-                end
-            end
-            
-            % Default setting metabolite data
-            metaboliteData = [];
-            
-            % Adjust default setting metabolite data
-            if strcmp(options.Metabolite,'On')
-                metaboliteData = options.metaboliteData;
-            end
-            
-            add_data_xml(options.file,options.reactID,...
-                thicknessData,...
-                colorData,...
-                'outputFile','temp.xgmml',...
-                'progress',options.progress,...
-                'metaboliteID',{options.metaboliteID},...
-                'metaboliteData',metaboliteData,...
-                'metabolicReaction',options.MetabolicReaction);
+            add_data_xml(this,varargin{:});
             
         end
         
@@ -671,11 +741,11 @@ classdef Archive < dynamicprops
             varargout{3} = D;
         end
         
-        function [this,track_clusters,cluster_list] = clustering(this, varargin)
+        function [this, track_clusters,cluster_list] = clustering(this, varargin)
             % method archive.dendrogram required for this method.
             %
             % [track_clusters,cluster_list,archive] = find_clusters_archive(z,...
-            %   nClusters,sClusters,set,selection,snap_shot_number)
+            %   nClusters,sClusters,selection,snap_shot_number)
             %
             % Cluster the sets according to the z matrix generated with the
             % archive.dendrogram method. This function requires: the z
@@ -689,12 +759,12 @@ classdef Archive < dynamicprops
             %
             % Examples:
             % [z,selection] = archive.dendrogram(1)
-            % [track_clusters,cluster_list,archive] = archive.clustering(z,...
-            % 3,20,[1:length(archive.set)],selection,1)
+            % [archive, track_clusters,cluster_list] = archive.clustering(z,...
+            % 3,20,[1:length(archive.set)],1)
             %
             % [z,selection] = archive.dendrogram(1,'set',[1,1,1,0,1])
-            % [track_clusters,cluster_list,archive] = archive.clustering(z,...
-            % 3,20,[1,1,1,0,1],selection,1)
+            % [track_clusters,cluster_list] = archive.clustering(z,...
+            % 3,20,[1,1,1,0,1],1)
             
             z = varargin{1};
             nClusters = varargin{2};        % How many clusters you want
@@ -708,7 +778,7 @@ classdef Archive < dynamicprops
             
             [track_clusters,cluster_list,this] = find_clusters_archive(z,...
                 nClusters,sClusters,this,reactions_or_molecules_used,...
-                snap_shot_number);
+                snap_shot_number,varargin{6:end});
         end
         
         function histogram(this,varargin)
@@ -955,7 +1025,7 @@ classdef Archive < dynamicprops
                 full_name = [variable name '.mat'];
                 
                 % Save archive
-                save(full_name,'archive');
+                save('-v7.3',full_name,'archive');
                 
                 % Inform user
                 fprintf('Saved: %s\n', full_name);
@@ -998,7 +1068,7 @@ classdef Archive < dynamicprops
             
             % Initiate sims counter
             sims = 0;
-                
+            
             % For every set
             for iSet = lSet
                 
@@ -1006,7 +1076,7 @@ classdef Archive < dynamicprops
                 sims = sims + length(this.set(iSet).simulation);
                 
             end
-                
+            
         end
         
         function this = add_info(this, varargin)
@@ -1150,7 +1220,10 @@ classdef Archive < dynamicprops
                 
                 % Split string to get the name of the state file
                 tmp = strsplit_archive(out{iState},'/'); % Remove "/"
+                file = tmp{end};
                 tmp = strsplit_archive(tmp{end},'.'); % Remove "."
+                number = strsplit_archive(tmp{1},'-');
+                number = str2double(number{end});
                 tmp = strrep(tmp, '-', '_'); % Replace "-"
                 tmp = strrep(tmp, ' ', '_'); % Replace " "
                 niState = tmp{1}; % The name of the state file
@@ -1159,15 +1232,17 @@ classdef Archive < dynamicprops
                 state = load(out{iState},'Time');
                 
                 % Get values
+                info.(niState).file = file;
+                info.(niState).number = number;
                 info.(niState).Time.min = min(squeeze(state.Time.values));
                 info.(niState).Time.max = max(squeeze(state.Time.values));
-            
+                
             end
             
             this.info.state = info;
         end
         
-        function find_time(this,varargin)
+        function state = find_time(this,varargin)
             % Look which state file types might include the desired time
             % point
             
@@ -1183,13 +1258,12 @@ classdef Archive < dynamicprops
             for iState = 1:tState
                 
                 % Get the time info structure
-                info = this.info(options.info).state.(fState{iState}).Time; 
+                info = this.info(options.info).state.(fState{iState}).Time;
                 
                 % Check if the time point is between the two extreems
                 if info.min <= options.time && options.time <= info.max
                     
-                    fprintf('The time point %d is found in state file type %s\n',...
-                        options.time,fState{iState});
+                    state = this.info.state.(fState{iState});
                     
                 end
                 
@@ -1236,7 +1310,7 @@ classdef Archive < dynamicprops
                             path = strrep(path,' ','_');
                             tPath = length(path);
                             for iPath = 1:tPath
-                               path{iPath} =  ['folder_' path{iPath}];
+                                path{iPath} =  ['folder_' path{iPath}];
                             end
                             
                             % Path to counter
@@ -1261,14 +1335,14 @@ classdef Archive < dynamicprops
         end
         
         function out = infocmp(this,varargin)
-            % strcmp like function specializid for archive which uses
-            % strfind instead of strcmp. 
+            % strcmp like function specializid for archive. It uses
+            % strfind instead of strcmp.
             %
-            %   out = infocmp(target,{'field1','field2',..})
-            %   
+            %   out = archive.infocmp(target,{'field1','field2',..})
+            %
             %   Example:
-            %       out = infocmp('DNA',{'info','ProteinComplex','name'});
-            %       out = 
+            %       out = archive.infocmp('DNA',{'info','ProteinComplex','name'});
+            %       out =
             %           [1 1 1 ..]
             
             % Get structure
@@ -1284,7 +1358,7 @@ classdef Archive < dynamicprops
             
         end
         
-        function cell_cycle(this,varargin)
+        function [analysis,state] = cell_cycle(this,varargin)
             % Visualize the progress of the cell
             %
             %   'set'       - set number
@@ -1292,15 +1366,15 @@ classdef Archive < dynamicprops
             
             % Check if whole cell model libraries are loaded; load
             % libraries if missing
-            this.check_WCM_library('initiate',true);
+            %             this.check_WCM_library('initiate',true);
             
             % Execute analysis
-            cell_cycle_archive(this, varargin{:});
+            [analysis,state] = cell_cycle_archive(this, varargin{:});
             
         end
         
         function check_WCM_library(this, varargin)
-            % Check if the library is added
+            % Check if the library of the whole cell model is added
             
             % Default settings
             options.initiate = false;
@@ -1356,16 +1430,216 @@ classdef Archive < dynamicprops
             % archive structure.
             % archive.('setting1',setting1,'setting2',setting2,...)
             
-            % Optionals:
-%             this.check_WCM_library;
+            % Optional:
+            %             this.check_WCM_library;
             
             % Execute function
             this = template_archive(this,varargin{:});
             
-            % Optionals:
-%             this.save_archive(true);
+            % Optional:
+            %             this.save_archive(true);
             
         end
+        
+        function varargout = cytoscape_structure(this,varargin)
+            % Create Cytoscape xml structure based on the
+            % archive.stoichiometry structure.
+            %
+            %   'layout'        - Apply a layout to the pathway (recommended).
+            %                     See example
+            %   'fileName'      - Change the name of the output file. Default name is
+            %                     "metabolic_pathway_structure.xgmml"
+            %   'layout_only'   - Only include reactions and molecules that are listed
+            %                     in the layout file (Default: 'Off')
+            %   'correctionList'- List that links the labels of the layout with the
+            %                     labels of the whole cell model.
+            %                     (from "assign_layout_entries.m"). NOTE: the list
+            %                     should be given like:
+            %                     'correctionList',{correctionList},...
+            %   'scaling'       - Scale the distance between the nodes
+            %   'proteins'      - Add proteins to pathway
+            %
+            %   Example:
+            %       First: Default_layout.cyjs is created by cytoscape
+            %       itself by expording the pathway and view in json
+            %       format).
+            %       Then:
+            %       % Add json matlab libraries
+            %       addpath('functions/others/jsonlab');
+            %       % Change the json format to something friendlier
+            %       json_layout_converter('Default_layout.cyjs');
+            %       % Create layout structure
+            %       layout = loadjson('converted_Default_layout.cyjs');
+            %       % Create pathway structure from archive.stoichimotry
+            %       structure with the layout as location template
+            %       archive.cytoscape_structure('layout',layout);
+            
+            varargout{1} = cytoscape_structure_archive(this,varargin{:});
+            
+        end
+        
+        function this = add_protein_elements_to_stoichiometry(this)
+            % Extract the protein information from the reaction field of
+            % the stoichiometry structure and create a seprate protein
+            % structure within the stoichiometry structure
+            
+            tmp1 = {this.stoichiometry.reaction.protein}; % List off al the protein arguments of the reactions
+            tmp2 = arrayfun(@(x)(ischar(tmp1{x})),1:length(tmp1)); % Check wether the elements are string values or not (otherwise is probably nan)
+            lProtein = unique(tmp1(tmp2)); % Make an unique list of proteins
+            % Total number of unique proteins to add
+            tProtein = length(lProtein);
+            
+            % For every protein create structure with its id
+            for iProtein = 1:tProtein
+                id = lProtein{iProtein};
+                this.stoichiometry.protein(iProtein).id = id;
+            end
+            
+            % Add compartment based on id
+            this = this.extract_from_xls_file('stoichiometry.protein.id','stoichiometry.protein.compartment',...
+                'mmc4.xlsx','S3O-Reactions',13,14);
+            
+            % Add other information
+            for iProtein = 1:tProtein
+                % Get id and compartment
+                id = this.stoichiometry.protein(iProtein).id;
+                compartment = this.stoichiometry.protein(iProtein).compartment;
+                
+                % Create Tag
+                tag = [id '[' compartment ']'];
+                
+                % Determine type and number of protein
+                type = 'ProteinComplex';
+                number = find(this.infocmp(id,{'info',type,'ID'}));
+                if isempty(number) % If it's not a protein complex
+                    type = 'ProteinMonomer';
+                    number = find(this.infocmp(id,{'info',type,'ID'}));
+                end
+                number = number(1);
+                
+                % Get name protein
+                name = this.info.(type)(number).name;
+                
+                % Get the reactions affected by this protein
+                tmp1 = find(this.infocmp(id,{'stoichiometry','reaction','protein'})); % Find reaction numbers
+                reaction = {this.stoichiometry.reaction(tmp1).id};
+                
+                % Save information
+                this.stoichiometry.protein(iProtein).tag = tag;
+                this.stoichiometry.protein(iProtein).name = name;
+                this.stoichiometry.protein(iProtein).type = type;
+                this.stoichiometry.protein(iProtein).reaction = reaction;
+                this.stoichiometry.protein(iProtein).number = number;
+            end
+            
+        end
+        
+        function info = info_file(this, iSet, iSimulation, file, varargin)
+            % Get information about file (date, storage space, directory status,
+            % datenum)
+            %   info = info_file_archive(archive, set, simulation, file)
+            
+            % Call function
+            info = info_file_archive(this, iSet, iSimulation, file, varargin{:});
+            
+        end
+        
+        function cmean_state_file(this, varargin)
+            % Make a mean state file of a set of simulations
+            
+            cmean_state_file_archive(this, varargin{:});
+            
+        end
+        
+        function varargout = snap_shot_average(this,varargin)
+            % Determine the average of all the snap shots of a set of sets.
+            % meanMatrix =  snap_shot_average_archive(archive, snap_shot, sets)
+            %   [meanMatrix, stdMatrix] = snap_shot_average_archive(archive,
+            %   snap_shot, sets)
+            
+            [varargout{1},varargout{2}] = snap_shot_average_archive(this,varargin{:});
+            
+        end
+        
+        function bar(this, matrix, type, varargin)
+            
+            bar_archive(this, matrix, type, varargin{:})
+            
+        end
+        
+        function varargout = snap_shot_ttest(this,...
+                snapShot, set1, set2, varargin)
+            
+            % Function
+            [H,P,CI,STATS] = snap_shot_Ttest_archive(this, snapShot, set1, set2, varargin{:});
+            
+            % Set out
+            varargout{1} = H;
+            varargout{2} = P;
+            varargout{3} = CI;
+            varargout{4} = STATS;
+            
+        end
+        
+        function folder = folder(this,set,simulation)
+            
+            % Folder simulation
+            folder = this.set(set).simulation(simulation).folder;
+            
+        end
+        
+        function matrix = get_values(this,set,simulation,...
+                target,element,location,varargin)
+            % Extract values of all the single state files and combine them into one
+            %   single matrix.
+            %   matrix = archive.get_values(set,simulation,target,element,location)
+            %
+            %   Example: matrix = get_values(1,1,'Metabolite.counts',[1:10],...
+            %       [1:6]);
+            %       Get the information the the first 10 metabolites at all locations
+            %       of the first simulation of the first set.
+            
+            matrix = get_values_archive(this,set,simulation,...
+                target,element,location,varargin{:});
+            
+        end
+        
+        function [out, this] = clustering_extensive(this, snapShot, reference, varargin)
+            % See code of function
+            % It's an itterative process.
+            % The function should be called 3 times for the final result.
+            % Every step requires more information depending on the last
+            % step
+            
+            [out, this] = clustering_extensive_archive(this, snapShot, reference, varargin{:});
+            
+        end
+        
+        function varargout = non_zero_state_elements(this, varargin)
+            % Check if an element has a non zero values at any time in any simulation.
+            %
+            %   Example:
+            %   nonZeroMatrix = archive.non_zero_state_elements('set',1,...
+            %       'field','Metabolite','subfield','counts','compartment',1:6);
+            
+            [varargout{1},varargout{2}] = non_zero_state_elements_archive(this, varargin{:});
+            
+        end
+        
+        function varargout = sim_set_matrix(this, varargin)
+           
+            [varargout{1},varargout{2}] = sim_set_matrix_archive(this, varargin{:});
+            
+        end
+        
+        function varargout = sim_set_quantaties(this, varargin)
+            
+            
+            [varargout{1},varargout{2},varargout{3},varargout{4},varargout{5}] = ...
+                sim_set_quantaties_archive(this, varargin{:});
+            
+        end
+        
     end
     
 end

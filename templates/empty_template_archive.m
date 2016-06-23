@@ -59,7 +59,7 @@ for iSet = lSet
         tSimulation = archive.simulations(iSet);    % Number of simulations to analyze
         lSimulation = 1:tSimulation;                % List of simulations to analyze
     else
-        lSimulation = options.set;                  % List of simulations to analyze
+        lSimulation = options.simulation;                  % List of simulations to analyze
         tSimulation = length(lSimulation);          % Number of simulations to analyze
     end
     

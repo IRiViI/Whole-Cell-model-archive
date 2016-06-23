@@ -405,7 +405,7 @@ for iElement = 1:length(reactionElement)
         reactionStructure.(reactionStructure.state).name{PRcounter} = name;
         reactionStructure.(reactionStructure.state).id{PRcounter} = id;
         reactionStructure.(reactionStructure.state).tag{PRcounter} = [id '[' compartment ']'];
-        reactionStructure.(reactionStructure.state).type{PRcounter} = 'radiation';
+        reactionStructure.(reactionStructure.state).type{PRcounter} = 'Stimulus';
         reactionStructure.(reactionStructure.state).location{PRcounter} = compartment;
     end
     

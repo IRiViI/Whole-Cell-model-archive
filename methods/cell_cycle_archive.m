@@ -189,7 +189,7 @@ analysis = get_regions(analysis,...
     'DnaA',color,opaquenessBase,y);
 
 % ----- Segregation enzymes ----- %
-color = 'y';
+color = 'r';
 opaquenessBase = 0.1;
 y = [0.2,0.4];
 

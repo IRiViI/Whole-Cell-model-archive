@@ -36,6 +36,13 @@ if isfield(input_options,'compartment')
 else
     options.compartment = 1;
 end
+% Adjust filter setting
+if isfield(input_options,'elements')
+   options.filter = true;
+   options.lElement = input_options.elements;
+else
+    options.filter = false;
+end
 
 % Get whether the fileTypeTag is direct or not
 C = strsplit(options.fileTypeTag,'.');
@@ -44,6 +51,7 @@ if strcmp(C(end),'mat')
 else
     options.direct = 'Off'; 
 end
+
 
 % Number of sets
 tStrain = length(archive.set);
@@ -83,6 +91,11 @@ for iStrain = 1:tStrain
             % Set the values
             archive.set(iStrain).simulation(iSimulation).snapShot(snapShotNumber).values =...
                 fullMatrix(:,:,:,iSimulation);
+        end
+        
+        % filter molecules reactions
+        if options.filter
+            fullMatrix = fullMatrix(options.lElement,:,:,:);
         end
         
         % Set average values of the set

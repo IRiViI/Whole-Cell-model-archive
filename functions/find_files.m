@@ -65,7 +65,8 @@ if strcmp(showProgress,'On')
 end
 
 % Find all subfolders
-lookforallfolders
+folderList = lookforallfolders(folderList,...
+    'showProgress',showProgress,'shortState',shortState);
 
 if strcmp(showProgress,'On')
     fprintf('Progress get files:      ');
@@ -73,35 +74,6 @@ end
 
 % Find all files with the tag in all folders
 lookfortagedfiles
-
-    function lookforallfolders
-        % Make a list of all subfolders in the directory
-        i = 1;
-        while i <= length(folderList)
-            
-            if strcmp(showProgress,'On')
-               display_progress(i,length(folderList)); 
-            end
-            
-            % Find all files
-            files = dir(folderList{i});
-            % Check if they are folders
-            dirFlags = [files.isdir];
-            % Only select the folders
-            subFolders = files(dirFlags);
-            for j = 3:length(subFolders)
-                % Add all new folders to folder list
-                folderList{end+1}=[folderList{i} '/' subFolders(j).name];
-            end
-            % Stop if only '.' or '..' is found.
-            if (strcmp(shortState,'On') && length(subFolders) < 3)
-                display_progress(1,1); 
-                break
-            end
-            
-            i = i + 1;
-        end
-    end
 
     function lookfortagedfiles
         % Search every folder to find the folders with the right tag
