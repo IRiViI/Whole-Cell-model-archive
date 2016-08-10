@@ -37,6 +37,7 @@ end
 % Output name
 if ~isfield(options,'out')
     tmp = strsplit(options.in,'/');
+    tmp = strsplit(tmp{end},'\');
     options.out = ['output' '/' 'converted_' tmp{end}];
 end
 
