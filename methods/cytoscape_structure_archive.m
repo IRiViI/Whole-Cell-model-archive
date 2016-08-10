@@ -197,7 +197,11 @@ function graph = add_molecule_nodes(docNode, graph, archive, options)
 tMolecule = length(archive.stoichiometry.molecule);
 
 % Number of molecule nodes in layout list
-ttMolecule = length(options.layout.molecules);
+try
+    ttMolecule = length(options.layout.molecules);
+catch
+    ttMolecule = 0;
+end
 
 % For every molecule in the stoichiometry list
 for iMolecule = 1:tMolecule
@@ -288,7 +292,11 @@ function graph = add_reaction_nodes(docNode, graph, archive, options)
 tReaction = length(archive.stoichiometry.reaction);
 
 % Number of reaction nodes in layout
-ttReaction = length(options.layout.reactions);
+try
+    ttReaction = length(options.layout.reactions);
+catch
+    ttReaction = 0;
+end
 
 % For every reaction in the stoichiometry list
 for iReaction = 1:tReaction
@@ -368,7 +376,11 @@ function graph = add_protein_nodes(docNode, graph, archive, options)
 tProtein = length(archive.stoichiometry.protein);
 
 % Number of molecule nodes in layout
-ttMolecule = length(options.layout.molecules);
+try
+    ttMolecule = length(options.layout.molecules);
+catch
+    ttMolecule = 0;
+end
 
 % For every reaction in the stoichiometry list
 for iProtein = 1:tProtein
@@ -529,7 +541,7 @@ for iReaction = 1:tReaction
             
             % Graphics
             edge = set_graphics(docNode, edge, options.reactionEdges, iNode);
-        
+            
         end
         
     end
@@ -558,8 +570,8 @@ for iProtein = 1:tProtein
     % Get information about the reactions affected by the protein
     infoProtein = archive.stoichiometry.protein(iProtein);
     
-%     % Total number of protein nodes
-%     tProteinNode = length(lProteinNode);
+    %     % Total number of protein nodes
+    %     tProteinNode = length(lProteinNode);
     
     % Total number of reaction types affected by protein
     tReaction = length(infoProtein.reaction);
@@ -575,52 +587,52 @@ for iProtein = 1:tProtein
         
         % Total number of reaction nodes
         tReactionNode = length(lReactionNode);
-    
-    % For every reaction node: make a edge between the reaction and the
-    % closest proteinNode
-    for iReactionNode = 1:tReactionNode
         
-        % Node number of reaction
-        iNode = lReactionNode(iReactionNode);
-        
-        % Find the closest node of each reaction that is affected by the
-        % protein
-        targetNode = closest_node(lNode, iNode, {idProtein});
-        
-        % Total number of molecule nodes
-        tMoleculeNode = length(targetNode);
-        
-        % Source and target info of edge
-        source = lNode(targetNode).id;
-        raw_source = lNode(targetNode).raw_id;
-        target = lNode(iNode).id;
-        raw_target = lNode(iNode).raw_id;
-        labelElement = '(protein-reaction)';
-        
-        % Make label
-        label = [source labelElement target];
-        
-        % Create edge
-        edge = docNode.createElement('edge');
-        edge.setAttribute('label',label);
-        edge.setAttribute('source',source);
-        edge.setAttribute('target',target);
-        edge.setAttribute('raw_source',raw_source);
-        edge.setAttribute('raw_target',raw_target);
-        graph.appendChild(edge);
-        
-        % Attributes list
-        attributeList = {'string','canonicalName',label;...
-            'string','interaction',labelElement;...
-            'real','sbml stoichiometry','1.0'};
-        
-        % Set attributes
-        edge = set_attributes(docNode, edge, attributeList);
-        
-        % Graphics
-        edge = set_graphics(docNode, edge, options.proteinEdges, iNode);
-        
-    end
+        % For every reaction node: make a edge between the reaction and the
+        % closest proteinNode
+        for iReactionNode = 1:tReactionNode
+            
+            % Node number of reaction
+            iNode = lReactionNode(iReactionNode);
+            
+            % Find the closest node of each reaction that is affected by the
+            % protein
+            targetNode = closest_node(lNode, iNode, {idProtein});
+            
+            % Total number of molecule nodes
+            tMoleculeNode = length(targetNode);
+            
+            % Source and target info of edge
+            source = lNode(targetNode).id;
+            raw_source = lNode(targetNode).raw_id;
+            target = lNode(iNode).id;
+            raw_target = lNode(iNode).raw_id;
+            labelElement = '(protein-reaction)';
+            
+            % Make label
+            label = [source labelElement target];
+            
+            % Create edge
+            edge = docNode.createElement('edge');
+            edge.setAttribute('label',label);
+            edge.setAttribute('source',source);
+            edge.setAttribute('target',target);
+            edge.setAttribute('raw_source',raw_source);
+            edge.setAttribute('raw_target',raw_target);
+            graph.appendChild(edge);
+            
+            % Attributes list
+            attributeList = {'string','canonicalName',label;...
+                'string','interaction',labelElement;...
+                'real','sbml stoichiometry','1.0'};
+            
+            % Set attributes
+            edge = set_attributes(docNode, edge, attributeList);
+            
+            % Graphics
+            edge = set_graphics(docNode, edge, options.proteinEdges, iNode);
+            
+        end
         
     end
     
